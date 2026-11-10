@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Protein">
 <meta name="theme-color" content="#F2F2F7">
 <title>Protein</title>
-<meta name="protein-build" content="gauge-v3-polish">
+<meta name="protein-build" content="gauge-v3-celebrate">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -411,6 +411,72 @@
   #fGramsWrap { display: none; }
 
 
+
+  /* Goal-hit celebration overlay */
+  #gaugeCard { position: relative; overflow: hidden; }
+  .celebrate-overlay {
+    position: absolute; inset: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none; opacity: 0;
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    border-radius: inherit;
+    transition: opacity 0.35s ease;
+  }
+  .celebrate-overlay.show {
+    pointer-events: auto; opacity: 1;
+  }
+  .celebrate-overlay.hiding {
+    opacity: 0; transition: opacity 0.45s ease;
+  }
+  .celebrate-inner {
+    position: relative; text-align: center;
+    transform: scale(0.72); opacity: 0;
+    transition: transform 0.45s cubic-bezier(0.34, 1.45, 0.64, 1), opacity 0.3s ease;
+    max-width: 86%;
+  }
+  .celebrate-overlay.show .celebrate-inner {
+    transform: scale(1); opacity: 1;
+  }
+  .celebrate-overlay.hiding .celebrate-inner {
+    transform: scale(0.92); opacity: 0;
+    transition: transform 0.4s ease, opacity 0.4s ease;
+  }
+  .celebrate-gif {
+    width: min(220px, 70vw); height: min(160px, 42vw);
+    object-fit: cover; border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
+    background: #fff; display: block; margin: 0 auto;
+  }
+  .celebrate-badge {
+    display: none;
+    margin: 0 auto 10px;
+    width: 64px; height: 64px; border-radius: 50%;
+    align-items: center; justify-content: center;
+    background: linear-gradient(145deg, #34C759, #009955);
+    color: #fff; font-size: 30px;
+    box-shadow: 0 8px 24px rgba(52,199,89,0.35);
+  }
+  .celebrate-overlay.reduced .celebrate-gif { display: none; }
+  .celebrate-overlay.reduced .celebrate-badge { display: flex; }
+  .celebrate-caption {
+    margin-top: 12px;
+    display: inline-block;
+    padding: 8px 14px; border-radius: 999px;
+    background: rgba(28,28,30,0.92); color: #fff;
+    font-size: 15px; font-weight: 700; letter-spacing: -0.01em;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+  }
+  .celebrate-canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .celebrate-inner {
+      transition: opacity 0.2s ease; transform: none !important;
+    }
+  }
+
   #fileInput, #importInput { display: none; }
 </style>
 </head>
@@ -439,6 +505,14 @@
   </header>
 
   <section class="card" id="gaugeCard">
+    <div class="celebrate-overlay" id="celebrateOverlay" aria-hidden="true">
+      <canvas class="celebrate-canvas" id="celebrateCanvas"></canvas>
+      <div class="celebrate-inner">
+        <div class="celebrate-badge" aria-hidden="true">💪</div>
+        <img class="celebrate-gif" id="celebrateGif" alt="" />
+        <div class="celebrate-caption" id="celebrateCaption">Goal hit!</div>
+      </div>
+    </div>
     <div class="gauge-wrap" id="gaugeWrap">
       <svg id="gaugeSvg" viewBox="0 0 320 240" aria-hidden="true"></svg>
       <div class="goal-pop" id="goalPop" role="dialog" aria-label="Adjust daily target">
@@ -989,7 +1063,7 @@
   const SEED = [{"id": "seed-1", "date": "2026-11-09", "time": "11:32", "name": "Salmon, rice & veg", "protein_g": 52, "kcal": 695, "carbs_g": 53, "fat_g": 31, "fiber_g": 4, "insights": ["Rich in omega-3s (roughly 3\u20134g EPA+DHA from ~200g salmon)", "Balanced post-training plate: protein + steady carbs"], "estimates": true}, {"id": "seed-2", "date": "2026-11-09", "time": "11:33", "name": "Shrimp & broccoli", "protein_g": 24, "kcal": 180, "carbs_g": 10, "fat_g": 4, "fiber_g": 3, "insights": ["Very lean: about half the calories come from protein", "Broccoli adds vitamin C and fiber"], "estimates": true}, {"id": "seed-3", "date": "2026-11-09", "time": "11:35", "name": "Barebells Cookies & Cream", "protein_g": 20, "kcal": 200, "carbs_g": 18, "fat_g": 8, "fiber_g": 3, "insights": ["Low sugar (~1g); sweetened with polyols"], "estimates": true}, {"id": "seed-4", "date": "2026-11-09", "time": "18:14", "name": "Beef rice & paprika", "protein_g": 45, "kcal": 945, "carbs_g": 98, "fat_g": 37, "fiber_g": 6, "insights": ["Good source of iron, zinc and B12 from beef", "Carb-heavy: a strong refuel meal after hard training"], "estimates": true}];
 
   let state = { schema: SCHEMA, goal: DEFAULT_TARGET, entries: [] };
-  let settings = { target: DEFAULT_TARGET, statsPeriod: '30d' };
+  let settings = { target: DEFAULT_TARGET, statsPeriod: '30d', celebrated: {} };
   let viewDate = todayStr();
   let editingId = null;
   let pendingPhoto = null; // data URL for unsaved photo
@@ -1040,14 +1114,16 @@
     } catch (e) {}
     settings = {
       target: clampTarget(s && s.target != null ? s.target : DEFAULT_TARGET),
-      statsPeriod: (s && ['7d','30d','all'].indexOf(s.statsPeriod) >= 0) ? s.statsPeriod : '30d'
+      statsPeriod: (s && ['7d','30d','all'].indexOf(s.statsPeriod) >= 0) ? s.statsPeriod : '30d',
+      celebrated: (s && s.celebrated && typeof s.celebrated === 'object') ? s.celebrated : {}
     };
   }
   function persistSettings() {
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify({
         target: getTarget(),
-        statsPeriod: settings.statsPeriod
+        statsPeriod: settings.statsPeriod,
+        celebrated: settings.celebrated || {}
       }));
     } catch (e) {
       console.warn('settings persist failed', e);
@@ -2119,6 +2195,8 @@
     };
     const isEstimate = !!(currentEst && (currentEst.rough || currentEst.matches));
 
+    const prevTotalForDate = dayTotal(date);
+
     function finish(id) {
       if (pendingPhoto) {
         photoCache[id] = pendingPhoto;
@@ -2129,6 +2207,7 @@
       flipped = {};
       closeSheet();
       render();
+      maybeCelebrateAfterSave(date, prevTotalForDate);
     }
 
     if (editingId) {
@@ -2362,6 +2441,171 @@
     });
   });
 
+
+  // --- Goal-hit celebration ---
+  const CELEBRATE_GIFS = [
+    'c01.gif','c02.gif','c03.gif','c04.gif','c05.gif','c06.gif','c07.gif',
+    'c08.gif','c09.gif','c10.gif','c11.gif','c12.gif','c13.gif','c14.gif'
+  ];
+  function celebrateGifBase() {
+    try {
+      var path = location.pathname || '';
+      if (path.indexOf('/protein/app') === 0 || /\/app\/?$/.test(path) || path.indexOf('/app/') >= 0) {
+        return '../gifs/';
+      }
+      if (path.indexOf('/protein') === 0) return 'gifs/';
+      // file:// or local pages root
+      if (/index\.html$/.test(path) && path.indexOf('/app/') >= 0) return '../gifs/';
+      return 'gifs/';
+    } catch (e) { return 'gifs/'; }
+  }
+  let celebrateTimer = null;
+  let celebrateConfettiRaf = null;
+  let celebrateOpen = false;
+
+  function prefersReducedMotion() {
+    try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+    catch (e) { return false; }
+  }
+
+  function markCelebrated(date) {
+    if (!settings.celebrated) settings.celebrated = {};
+    settings.celebrated[date] = true;
+    persistSettings();
+  }
+  function wasCelebrated(date) {
+    return !!(settings.celebrated && settings.celebrated[date]);
+  }
+
+  function runConfetti(canvas, durationMs) {
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const W = rect.width, H = rect.height;
+    const colors = ['#FF3B30','#FF9F0A','#34C759','#007AFF','#AF52DE','#FF2D55','#FFD60A'];
+    const parts = [];
+    for (let i = 0; i < 48; i++) {
+      parts.push({
+        x: W * 0.5 + (Math.random() - 0.5) * W * 0.35,
+        y: H * 0.42,
+        vx: (Math.random() - 0.5) * 7,
+        vy: - (2.5 + Math.random() * 6),
+        g: 0.18 + Math.random() * 0.12,
+        w: 4 + Math.random() * 5,
+        h: 6 + Math.random() * 8,
+        rot: Math.random() * Math.PI,
+        vr: (Math.random() - 0.5) * 0.3,
+        color: colors[(Math.random() * colors.length) | 0],
+        life: 1
+      });
+    }
+    const t0 = performance.now();
+    function frame(t) {
+      const elapsed = t - t0;
+      ctx.clearRect(0, 0, W, H);
+      parts.forEach(function (p) {
+        p.vy += p.g;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.vr;
+        p.life = Math.max(0, 1 - elapsed / durationMs);
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.globalAlpha = Math.min(1, p.life * 1.4);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      });
+      if (elapsed < durationMs && celebrateOpen) {
+        celebrateConfettiRaf = requestAnimationFrame(frame);
+      } else {
+        ctx.clearRect(0, 0, W, H);
+        celebrateConfettiRaf = null;
+      }
+    }
+    if (celebrateConfettiRaf) cancelAnimationFrame(celebrateConfettiRaf);
+    celebrateConfettiRaf = requestAnimationFrame(frame);
+  }
+
+  function hideCelebration() {
+    const el = document.getElementById('celebrateOverlay');
+    if (!el || !celebrateOpen) {
+      celebrateOpen = false;
+      return;
+    }
+    celebrateOpen = false;
+    if (celebrateTimer) { clearTimeout(celebrateTimer); celebrateTimer = null; }
+    el.classList.add('hiding');
+    el.classList.remove('show');
+    setTimeout(function () {
+      el.classList.remove('hiding', 'reduced');
+      el.setAttribute('aria-hidden', 'true');
+      const img = document.getElementById('celebrateGif');
+      if (img) { img.removeAttribute('src'); }
+      if (celebrateConfettiRaf) { cancelAnimationFrame(celebrateConfettiRaf); celebrateConfettiRaf = null; }
+      const canvas = document.getElementById('celebrateCanvas');
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx && ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }, 480);
+  }
+
+  function showCelebration(opts) {
+    opts = opts || {};
+    const total = opts.total != null ? opts.total : dayTotal(viewDate);
+    const goal = opts.goal != null ? opts.goal : getTarget();
+    const el = document.getElementById('celebrateOverlay');
+    const img = document.getElementById('celebrateGif');
+    const cap = document.getElementById('celebrateCaption');
+    const canvas = document.getElementById('celebrateCanvas');
+    if (!el || !img || !cap) return;
+    if (celebrateTimer) { clearTimeout(celebrateTimer); celebrateTimer = null; }
+    if (celebrateConfettiRaf) { cancelAnimationFrame(celebrateConfettiRaf); celebrateConfettiRaf = null; }
+
+    const reduced = prefersReducedMotion() || !!opts.reduced;
+    el.classList.toggle('reduced', reduced);
+    cap.textContent = 'Goal hit! ' + Math.round(total) + 'g';
+    if (!reduced) {
+      const pick = CELEBRATE_GIFS[(Math.random() * CELEBRATE_GIFS.length) | 0];
+      img.src = celebrateGifBase() + pick;
+      img.alt = 'Celebration';
+    } else {
+      img.removeAttribute('src');
+    }
+    el.classList.remove('hiding');
+    el.setAttribute('aria-hidden', 'false');
+    // force reflow for pop-in
+    void el.offsetWidth;
+    celebrateOpen = true;
+    el.classList.add('show');
+    if (!reduced) runConfetti(canvas, 3200);
+    const ms = opts.duration != null ? opts.duration : (reduced ? 2800 : 3600);
+    celebrateTimer = setTimeout(hideCelebration, ms);
+  }
+
+  function maybeCelebrateAfterSave(date, prevTotal) {
+    const goal = getTarget();
+    const next = dayTotal(date);
+    if (!(prevTotal < goal && next >= goal)) return;
+    if (wasCelebrated(date)) return;
+    markCelebrated(date);
+    // Only show overlay if we're looking at that day
+    if (date === viewDate) {
+      showCelebration({ total: next, goal: goal });
+    }
+  }
+
+  const celebrateOverlayEl = document.getElementById('celebrateOverlay');
+  if (celebrateOverlayEl) {
+    celebrateOverlayEl.addEventListener('click', function () { hideCelebration(); });
+  }
+
   // Test hook for headless verification
   window.__proteinTest = {
     flip: function (id) { flipped[id] = true; renderPhotos(); },
@@ -2389,7 +2633,17 @@
     seedEmojis: function () {
       return SEED.map(function (e) { return { name: e.name, emoji: mealEmoji(e.name) }; });
     },
-    build: 'gauge-v3-polish'
+    showCelebration: function (opts) { showCelebration(opts || {}); },
+    hideCelebration: function () { hideCelebration(); },
+    wasCelebrated: function (d) { return wasCelebrated(d || viewDate); },
+    clearCelebrated: function (d) {
+      if (!settings.celebrated) settings.celebrated = {};
+      if (d) delete settings.celebrated[d];
+      else settings.celebrated = {};
+      persistSettings();
+    },
+    celebrateGifBase: celebrateGifBase,
+    build: 'gauge-v3-celebrate'
   };
 
   // Persist storage when supported (keeps localStorage/IDB from being evicted)
@@ -2412,6 +2666,14 @@
   } catch (e) {}
   if (dayTotal(viewDate) === 0 && dayTotal('2026-11-09') > 0) viewDate = '2026-11-09';
   render();
+  try {
+    var params = new URLSearchParams(location.search || '');
+    if (params.get('celebrate') === '1') {
+      setTimeout(function () {
+        showCelebration({ total: Math.max(dayTotal(viewDate), getTarget()), force: true });
+      }, 400);
+    }
+  } catch (e) {}
 })();
 </script>
 </body>
