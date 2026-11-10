@@ -1,0 +1,2444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="protein-clean-v1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Protein">
+<meta name="theme-color" content="#F2F2F7">
+<title>Protein</title>
+<meta name="protein-build" content="protein-clean-v1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F2F2F7;
+    --card: #FFFFFF;
+    --text: #1C1C1E;
+    --muted: #8E8E93;
+    --red: #FF3B30;
+    --amber: #FF9F0A;
+    --green: #34C759;
+    --sgreen: #009955;
+    --shadow: 0 4px 24px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+    --radius: 20px;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-t: env(safe-area-inset-top, 0px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100%;
+  }
+  body { padding: calc(16px + var(--safe-t)) 16px calc(40px + var(--safe-b)); max-width: 430px; margin: 0 auto; }
+  button { font: inherit; border: none; background: none; cursor: pointer; color: inherit; }
+  input { font: inherit; color: inherit; }
+
+  .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; gap: 12px; }
+  .header-left { flex: 1; min-width: 0; }
+  .date-row { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+  .date-label {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .chev {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 18px; line-height: 1; font-weight: 600;
+  }
+  .chev:active { background: rgba(0,0,0,0.06); }
+  .title { font-size: 34px; font-weight: 700; letter-spacing: -0.03em; margin: 0; line-height: 1.1; }
+  .header-actions { display: flex; gap: 8px; padding-top: 4px; }
+  .icon-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--card); box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 500; color: var(--text);
+    position: relative;
+  }
+  .icon-btn.plus { background: var(--text); color: #fff; font-size: 26px; line-height: 1; }
+  .icon-btn:active { transform: scale(0.94); }
+
+  .menu {
+    position: absolute; top: 48px; right: 0; z-index: 50;
+    background: var(--card); border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+    min-width: 180px; padding: 6px; display: none;
+  }
+  .menu.open { display: block; }
+  .menu button {
+    display: block; width: 100%; text-align: left;
+    padding: 12px 14px; border-radius: 10px; font-size: 15px; font-weight: 500;
+  }
+  .menu button:active { background: var(--bg); }
+  .menu button.danger { color: var(--red); }
+
+  .card {
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 20px; margin-bottom: 14px;
+  }
+
+  .gauge-wrap { position: relative; width: 100%; max-width: 320px; margin: 0 auto 4px; }
+  .gauge-wrap svg { width: 100%; height: auto; display: block; }
+  .gauge-center {
+    position: absolute; left: 0; right: 0; top: 58%;
+    transform: translateY(-50%);
+    text-align: center; pointer-events: none;
+  }
+  .gauge-kicker {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 2px;
+  }
+  .gauge-total {
+    font-size: 56px; font-weight: 700; letter-spacing: -0.04em;
+    line-height: 1; margin: 0;
+  }
+  .status-pill {
+    display: inline-block; margin-top: 8px;
+    padding: 4px 12px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; color: #fff;
+  }
+  .gauge-hint { margin-top: 8px; font-size: 13px; color: var(--muted); }
+  .band-label { font-size: 10px; font-weight: 600; fill: #8E8E93; }
+  .gauge-wrap { touch-action: none; }
+  .goal-hit { cursor: grab; touch-action: none; }
+  .gauge-wrap.dragging { cursor: grabbing; }
+  .goal-label-hit { cursor: pointer; }
+  .goal-drag-pill {
+    font-size: 11px; font-weight: 700; fill: #fff;
+  }
+  .goal-pop {
+    position: absolute; z-index: 40;
+    background: var(--card); border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.06);
+    padding: 12px 14px; min-width: 168px;
+    display: none; left: 50%; top: 8px; transform: translateX(-50%);
+  }
+  .goal-pop.open { display: block; }
+  .goal-pop-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); text-align: center; margin-bottom: 8px;
+  }
+  .goal-pop-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .goal-pop-row button {
+    width: 40px; height: 40px; border-radius: 50%; background: var(--bg);
+    font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center;
+  }
+  .goal-pop-row button:active { background: #E5E5EA; }
+  .goal-pop-val { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; min-width: 64px; text-align: center; }
+  .goal-pop-done {
+    margin-top: 10px; width: 100%; padding: 10px; border-radius: 12px;
+    background: var(--text); color: #fff; font-size: 15px; font-weight: 600;
+  }
+
+  .week-title {
+    font-size: 13px; font-weight: 600; color: var(--muted);
+    letter-spacing: 0.04em; text-transform: uppercase; margin: 0 0 14px;
+  }
+  .week-row { display: flex; justify-content: space-between; gap: 4px; }
+  .week-day { flex: 1; text-align: center; }
+  .week-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    margin: 0 auto 6px; background: transparent;
+    border: 2px solid #D1D1D6;
+  }
+  .week-dot.filled { border-width: 0; }
+  .week-dot.viewed { box-shadow: 0 0 0 3px rgba(0,0,0,0.14); }
+  .week-initial { font-size: 11px; font-weight: 600; color: var(--muted); }
+
+  .log-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 8px; flex-wrap: wrap; }
+  .log-title { font-size: 17px; font-weight: 700; margin: 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; font-size: 10px; color: var(--muted); font-weight: 500; }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  .log-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; border-top: 1px solid #F2F2F7;
+    cursor: pointer;
+  }
+  .log-row:first-of-type { border-top: none; }
+  .log-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .log-main { flex: 1; min-width: 0; }
+  .log-name { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .log-time { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .power-pill {
+    display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+    background: var(--sgreen); color: #fff; padding: 2px 6px; border-radius: 999px;
+  }
+  .log-bar-wrap { width: 72px; height: 4px; background: #F2F2F7; border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+  .log-bar { height: 100%; border-radius: 2px; }
+  .log-grams { font-size: 16px; font-weight: 700; width: 42px; text-align: right; flex-shrink: 0; }
+  .empty { text-align: center; color: var(--muted); font-size: 14px; padding: 20px 0; }
+  .empty-hero {
+    text-align: center; padding: 28px 12px 18px;
+  }
+  .empty-hero .emoji { font-size: 40px; line-height: 1; margin-bottom: 10px; }
+  .empty-hero h3 {
+    margin: 0 0 6px; font-size: 20px; font-weight: 700; letter-spacing: -0.02em;
+  }
+  .empty-hero p {
+    margin: 0 auto 16px; max-width: 260px; font-size: 14px; color: var(--muted); line-height: 1.4;
+  }
+  .empty-cta {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 12px 18px; border-radius: 14px; background: var(--text); color: #fff;
+    font-size: 15px; font-weight: 600;
+  }
+  .empty-cta:active { opacity: 0.85; }
+  .stats-empty {
+    text-align: center; padding: 18px 8px 8px; color: var(--muted); font-size: 13px; line-height: 1.4;
+  }
+
+  .photos-title { font-size: 17px; font-weight: 700; margin: 0 0 4px; }
+  .photos-hint { font-size: 12px; color: var(--muted); margin: 0 0 12px; }
+  .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* Flip cards */
+  .flip-scene {
+    perspective: 1200px;
+    -webkit-perspective: 1200px;
+    aspect-ratio: 3 / 4;
+    cursor: pointer;
+  }
+  .flip-card {
+    position: relative; width: 100%; height: 100%;
+    transition: transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1);
+    transform-style: preserve-3d;
+    -webkit-transform-style: preserve-3d;
+  }
+  .flip-card.flipped { transform: rotateY(180deg); -webkit-transform: rotateY(180deg); }
+  .flip-face {
+    position: absolute; inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    border-radius: 16px; overflow: hidden;
+    background: #E5E5EA;
+  }
+  .flip-front img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-cap {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 28px 10px 10px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.65));
+    color: #fff; font-size: 12px; font-weight: 600;
+  }
+  .photo-cap .g { font-weight: 700; }
+  .photo-cap .t { opacity: 0.85; font-weight: 500; font-size: 11px; }
+  .flip-hint {
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(0,0,0,0.45); color: #fff;
+    font-size: 10px; font-weight: 600; padding: 3px 7px; border-radius: 999px;
+  }
+  .flip-back {
+    transform: rotateY(180deg); -webkit-transform: rotateY(180deg);
+    background: #1C1C1E; color: #fff;
+    padding: 10px; display: flex; flex-direction: column; gap: 6px;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+  }
+  .back-title { font-size: 12px; font-weight: 700; line-height: 1.2; margin: 0; }
+  .back-sub { font-size: 9px; color: rgba(255,255,255,0.55); margin: 0; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .stat-tile {
+    background: rgba(255,255,255,0.1); border-radius: 9px;
+    padding: 6px 6px 5px; text-align: center;
+  }
+  .stat-tile .v { font-size: 14px; font-weight: 700; letter-spacing: -0.02em; }
+  .stat-tile .l { font-size: 8px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: rgba(255,255,255,0.55); margin-top: 1px; }
+  .macro-bar {
+    display: flex; height: 5px; border-radius: 3px; overflow: hidden;
+    background: rgba(255,255,255,0.12); flex-shrink: 0;
+  }
+  .macro-bar span { display: block; height: 100%; }
+  .macro-legend {
+    display: flex; justify-content: space-between; gap: 4px;
+    font-size: 8px; color: rgba(255,255,255,0.6); font-weight: 600;
+  }
+  .macro-legend i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 3px; vertical-align: middle; }
+  .insight {
+    font-size: 10px; line-height: 1.3; color: rgba(255,255,255,0.85);
+    padding-left: 7px; border-left: 2px solid var(--green);
+  }
+  .back-empty { font-size: 11px; color: rgba(255,255,255,0.6); margin-top: auto; }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+    z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .overlay.open { opacity: 1; pointer-events: auto; }
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 110;
+    background: var(--card);
+    border-radius: 24px 24px 0 0;
+    padding: 12px 20px calc(24px + var(--safe-b));
+    max-width: 430px; margin: 0 auto;
+    transform: translateY(110%); transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+    max-height: 92vh; overflow-y: auto;
+  }
+  .sheet.open { transform: translateY(0); }
+  .sheet-handle { width: 36px; height: 5px; background: #D1D1D6; border-radius: 3px; margin: 0 auto 16px; }
+  .sheet-title { font-size: 20px; font-weight: 700; margin: 0 0 16px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .field input {
+    width: 100%; padding: 14px 14px; border-radius: 12px;
+    border: 1px solid #E5E5EA; background: var(--bg); font-size: 16px;
+    outline: none;
+  }
+  .field input:focus { border-color: #007AFF; background: #fff; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .photo-pick { display: flex; align-items: center; gap: 12px; }
+  .photo-preview {
+    width: 64px; height: 64px; border-radius: 12px; object-fit: cover;
+    background: var(--bg); display: none;
+  }
+  .photo-preview.show { display: block; }
+  .pick-btn {
+    flex: 1; padding: 14px; border-radius: 12px; background: var(--bg);
+    font-size: 15px; font-weight: 600; text-align: center; color: #007AFF;
+  }
+  .sheet-actions { display: flex; gap: 10px; margin-top: 8px; }
+  .btn {
+    flex: 1; padding: 16px; border-radius: 14px;
+    font-size: 16px; font-weight: 600; text-align: center;
+  }
+  .btn-primary { background: var(--text); color: #fff; }
+  .btn-secondary { background: var(--bg); color: var(--text); }
+  .btn-danger { background: #FFE5E5; color: var(--red); }
+  .btn:active { opacity: 0.85; }
+  .section-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 8px 0 10px;
+  }
+
+  /* Stats */
+  .stats-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .stats-title { font-size: 17px; font-weight: 700; margin: 0; }
+  .period-tog {
+    display: inline-flex; background: var(--bg); border-radius: 999px; padding: 3px; gap: 2px;
+  }
+  .period-tog button {
+    padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--muted);
+  }
+  .period-tog button.active { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .stat-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;
+  }
+  .stat-box {
+    background: var(--bg); border-radius: 14px; padding: 12px 14px;
+  }
+  .stat-box .sv { font-size: 22px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.15; }
+  .stat-box .sl { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 3px; }
+  .stat-box .ss { font-size: 12px; color: var(--muted); margin-top: 2px; font-weight: 500; }
+  .chart-wrap { width: 100%; margin-top: 4px; }
+  .chart-wrap svg { width: 100%; height: auto; display: block; }
+  .stats-caption { font-size: 11px; color: var(--muted); margin: 10px 0 0; line-height: 1.35; }
+  .target-stepper {
+    display: flex; align-items: center; gap: 10px; justify-content: center; margin: 8px 0 4px;
+  }
+  .target-stepper button {
+    width: 44px; height: 44px; border-radius: 50%; background: var(--bg);
+    font-size: 22px; font-weight: 600; color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .target-stepper button:active { background: #E5E5EA; }
+  .target-stepper input {
+    width: 96px; text-align: center; font-size: 28px; font-weight: 700;
+    letter-spacing: -0.03em; border: none; background: transparent; outline: none;
+    -moz-appearance: textfield;
+  }
+  .target-stepper input::-webkit-outer-spin-button,
+  .target-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .target-unit { font-size: 15px; font-weight: 600; color: var(--muted); margin-left: -4px; }
+  .target-hint { text-align: center; font-size: 13px; color: var(--muted); margin: 0 0 16px; }
+  .photo-pick-primary {
+    display: flex; flex-direction: column; align-items: stretch; gap: 10px;
+  }
+  .photo-preview.large {
+    width: 100%; height: 160px; border-radius: 16px; object-fit: cover;
+    background: var(--bg); display: none;
+  }
+  .photo-preview.large.show { display: block; }
+  .pick-btn.primary {
+    flex: none; width: 100%; padding: 18px; border-radius: 14px;
+    background: var(--bg); font-size: 16px; font-weight: 600; color: #007AFF;
+  }
+  .exif-hint {
+    font-size: 12px; color: var(--muted); margin: -4px 0 10px; min-height: 0;
+  }
+  .exif-hint.show { margin-bottom: 12px; }
+  .manual-toggle {
+    display: block; width: 100%; text-align: left;
+    padding: 10px 0; font-size: 14px; font-weight: 600; color: #007AFF;
+  }
+  .manual-toggle .chev { display: inline-block; transition: transform 0.2s; margin-right: 4px; font-size: 12px; }
+  .manual-toggle.open .chev { transform: rotate(90deg); }
+  .manual-fields { display: none; }
+  .manual-fields.open { display: block; }
+  .meal-emoji {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+    background: #F2F2F7;
+    box-shadow: inset 0 0 0 2.5px var(--emoji-ring, #D1D1D6);
+  }
+  .est-card {
+    background: var(--bg); border-radius: 16px; padding: 16px 14px 14px;
+    margin-bottom: 12px; text-align: center;
+  }
+  .est-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+  }
+  .est-label.guess { color: var(--amber); }
+  .est-stepper {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+  }
+  .est-stepper button {
+    width: 48px; height: 48px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    font-size: 26px; font-weight: 600; color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .est-stepper button:active { transform: scale(0.94); }
+  .est-value {
+    font-size: 48px; font-weight: 700; letter-spacing: -0.04em; line-height: 1;
+    min-width: 90px;
+  }
+  .est-unit { font-size: 15px; font-weight: 600; color: var(--muted); margin-top: 2px; }
+  .est-macros {
+    display: flex; justify-content: center; flex-wrap: wrap; gap: 10px;
+    margin-top: 10px; font-size: 12px; font-weight: 600; color: var(--muted);
+  }
+  .est-macros span { background: #fff; padding: 4px 8px; border-radius: 999px; }
+  .est-match {
+    margin-top: 8px; font-size: 12px; color: var(--muted); font-weight: 500;
+    min-height: 16px;
+  }
+  .photo-emoji-badge {
+    position: absolute; top: 8px; left: 8px;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: rgba(255,255,255,0.92);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    box-shadow: inset 0 0 0 2px var(--emoji-ring, transparent);
+  }
+  #fGramsWrap { display: none; }
+
+
+  #fileInput, #importInput { display: none; }
+</style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-left">
+      <div class="date-row">
+        <button class="chev" id="prevDay" aria-label="Previous day">‹</button>
+        <span class="date-label" id="dateLabel">—</span>
+        <button class="chev" id="nextDay" aria-label="Next day">›</button>
+      </div>
+      <h1 class="title">Protein</h1>
+    </div>
+    <div class="header-actions">
+      <div style="position:relative">
+        <button class="icon-btn" id="menuBtn" aria-label="Menu">⋯</button>
+        <div class="menu" id="menu">
+          <button type="button" id="targetBtn">Daily target</button>
+          <button type="button" id="exportBtn">Export JSON</button>
+          <button type="button" id="importBtn">Import JSON</button>
+          <button type="button" class="danger" id="clearDayBtn">Clear day</button>
+        </div>
+      </div>
+      <button class="icon-btn plus" id="addBtn" aria-label="Add">+</button>
+    </div>
+  </header>
+
+  <section class="card" id="gaugeCard">
+    <div class="gauge-wrap" id="gaugeWrap">
+      <svg id="gaugeSvg" viewBox="0 0 320 240" aria-hidden="true"></svg>
+      <div class="goal-pop" id="goalPop" role="dialog" aria-label="Adjust daily target">
+        <div class="goal-pop-title">Daily target</div>
+        <div class="goal-pop-row">
+          <button type="button" id="goalPopMinus" aria-label="Decrease">−</button>
+          <div class="goal-pop-val" id="goalPopVal">155</div>
+          <button type="button" id="goalPopPlus" aria-label="Increase">+</button>
+        </div>
+        <button type="button" class="goal-pop-done" id="goalPopDone">Done</button>
+      </div>
+      <div class="gauge-center">
+        <div class="gauge-kicker">Today's protein</div>
+        <p class="gauge-total" id="totalNum">0</p>
+        <span class="status-pill" id="statusPill">Low</span>
+        <div class="gauge-hint" id="gaugeHint">—</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 class="week-title">This week</h2>
+    <div class="week-row" id="weekRow"></div>
+  </section>
+
+  <section class="card">
+    <div class="log-header">
+      <h2 class="log-title">Today's log</h2>
+      <div class="legend">
+        <span><i style="background:#FF3B30"></i>&lt;10</span>
+        <span><i style="background:#FF9F0A"></i>10–20</span>
+        <span><i style="background:#34C759"></i>20–35</span>
+        <span><i style="background:#009955"></i>&gt;35</span>
+      </div>
+    </div>
+    <div id="logList"></div>
+  </section>
+
+  <section class="card" id="photosCard" style="display:none">
+    <h2 class="photos-title">Photos</h2>
+    <p class="photos-hint">Tap a photo for nutrition insights</p>
+    <div class="photo-grid" id="photoGrid"></div>
+  </section>
+
+  <section class="card" id="statsCard">
+    <div class="stats-header">
+      <h2 class="stats-title">Stats</h2>
+      <div class="period-tog" id="periodTog" role="group" aria-label="Stats period">
+        <button type="button" data-period="7d">7d</button>
+        <button type="button" data-period="30d" class="active">30d</button>
+        <button type="button" data-period="all">All</button>
+      </div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="sv" id="statHit">—</div>
+        <div class="sl">Hit vs miss</div>
+        <div class="ss" id="statHitSub">logged days</div>
+      </div>
+      <div class="stat-box">
+        <div class="sv" id="statPct">—</div>
+        <div class="sl">Hit rate</div>
+        <div class="ss" id="statPctSub">of logged days</div>
+      </div>
+      <div class="stat-box" style="grid-column:1 / -1">
+        <div class="sv" id="statAvg">—</div>
+        <div class="sl">Average daily protein</div>
+        <div class="ss" id="statAvgSub">over logged days</div>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <svg id="statsChart" viewBox="0 0 360 160" aria-label="Daily protein chart"></svg>
+    </div>
+    <p class="stats-caption" id="statsCaption">Only days with at least one entry count as logged days.</p>
+  </section>
+
+  <div class="overlay" id="overlay"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true">
+    <div class="sheet-handle"></div>
+    <h2 class="sheet-title" id="sheetTitle">Add meal</h2>
+    <div class="field">
+      <label>Photo</label>
+      <div class="photo-pick-primary">
+        <img class="photo-preview large" id="photoPreview" alt="">
+        <button type="button" class="pick-btn primary" id="pickPhoto">Choose photo</button>
+      </div>
+      <p class="exif-hint" id="exifHint"></p>
+    </div>
+    <div class="field">
+      <label for="fName">Description</label>
+      <input id="fName" type="text" placeholder="e.g. protein shake, 3 eggs and toast" autocomplete="off">
+    </div>
+    <div class="est-card" id="estCard">
+      <div class="est-label" id="estLabel">Estimated protein</div>
+      <div class="est-stepper">
+        <button type="button" id="estMinus" aria-label="Decrease">−</button>
+        <div>
+          <div class="est-value" id="estValue">25</div>
+          <div class="est-unit">grams</div>
+        </div>
+        <button type="button" id="estPlus" aria-label="Increase">+</button>
+      </div>
+      <div class="est-macros" id="estMacros"></div>
+      <div class="est-match" id="estMatch"></div>
+    </div>
+    <div class="field" id="fGramsWrap">
+      <label for="fGrams">Protein (g)</label>
+      <input id="fGrams" type="number" inputmode="decimal" min="0" max="500" step="1" placeholder="0">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="fDate">Date</label>
+        <input id="fDate" type="date">
+      </div>
+      <div class="field">
+        <label for="fTime">Time</label>
+        <input id="fTime" type="time">
+      </div>
+    </div>
+    <button type="button" class="manual-toggle" id="manualToggle" aria-expanded="false"><span class="chev">›</span> Add manually</button>
+    <div class="manual-fields" id="manualFields">
+      <div class="section-label">Optional macros</div>
+      <div class="field-row">
+        <div class="field">
+          <label for="fKcal">Calories</label>
+          <input id="fKcal" type="number" inputmode="numeric" min="0" placeholder="—">
+        </div>
+        <div class="field">
+          <label for="fCarbs">Carbs (g)</label>
+          <input id="fCarbs" type="number" inputmode="decimal" min="0" placeholder="—">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="fFat">Fat (g)</label>
+          <input id="fFat" type="number" inputmode="decimal" min="0" placeholder="—">
+        </div>
+        <div class="field">
+          <label for="fFiber">Fiber (g)</label>
+          <input id="fFiber" type="number" inputmode="decimal" min="0" placeholder="—">
+        </div>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+      <button type="button" class="btn btn-primary" id="saveBtn">Accept</button>
+    </div>
+    <div class="sheet-actions" id="editExtra" style="display:none;margin-top:10px">
+      <button type="button" class="btn btn-danger" id="deleteBtn">Delete</button>
+    </div>
+  </div>
+
+  <div class="sheet" id="targetSheet" role="dialog" aria-modal="true" aria-labelledby="targetSheetTitle">
+    <div class="sheet-handle"></div>
+    <h2 class="sheet-title" id="targetSheetTitle">Daily target</h2>
+    <p class="target-hint">How much protein you aim for each day</p>
+    <div class="target-stepper">
+      <button type="button" id="targetMinus" aria-label="Decrease">−</button>
+      <input id="fTarget" type="number" inputmode="numeric" min="50" max="300" step="5" value="155">
+      <span class="target-unit">g</span>
+      <button type="button" id="targetPlus" aria-label="Increase">+</button>
+    </div>
+    <p class="target-hint" id="targetBandsHint">Amber ~90 · Green ~120</p>
+    <div class="sheet-actions">
+      <button type="button" class="btn btn-secondary" id="targetCancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="targetSave">Save</button>
+    </div>
+  </div>
+
+  <input type="file" id="fileInput" accept="image/*,.heic,.heif">
+  <input type="file" id="importInput" accept="application/json,.json">
+
+<script>
+
+(function () {
+  const STORAGE_KEY = 'protein-app-v1';
+  const LEGACY_KEY = 'protein-app-legacy';
+  const SETTINGS_KEY = 'protein-app-settings';
+  const SCHEMA = 3;
+  const DEFAULT_TARGET = 155;
+  const COLORS = { red: '#FF3B30', amber: '#FF9F0A', green: '#34C759', sgreen: '#009955' };
+
+  /* ---------- Emoji + food estimator (static, no APIs) ---------- */
+  const EMOJI_RULES = [
+    { re: /\bsalmon\b|\bgravlax\b/i, e: '🐟' },
+    { re: /\bshrimp\b|\bprawn/i, e: '🦐' },
+    { re: /\btuna\b/i, e: '🐟' },
+    { re: /\bcod\b|\bhalibut\b|\btilapia\b|\bfish\b/i, e: '🐟' },
+    { re: /\bsushi\b|\bsashimi\b|\bmaki\b/i, e: '🍣' },
+    { re: /\begg\b|\beggs\b|\bomelet|\boffee\b/i, e: '🥚' },
+    { re: /\bchicken\b|\bturkey\b/i, e: '🍗' },
+    { re: /\bsteak\b|\bribeye\b|\bsirloin\b/i, e: '🥩' },
+    { re: /\bbeef\b.*\brice\b|\brice\b.*\bbeef\b|\bfried rice\b/i, e: '🍛' },
+    { re: /\bbeef\b|\bhamburger\b|\bburger\b/i, e: '🍔' },
+    { re: /\bpork\b|\bbacon\b|\bham\b|\bsausage\b/i, e: '🥓' },
+    { re: /\byogurt\b|\byoghurt\b|\bskyr\b/i, e: '🥛' },
+    { re: /\bcottage\b/i, e: '🧀' },
+    { re: /\bcheese\b|\bmozzarella\b|\bcheddar\b|\bfeta\b/i, e: '🧀' },
+    { re: /\bmilk\b|\blatte\b/i, e: '🥛' },
+    { re: /\bwhey\b|\bprotein shake\b|\bshake\b|\bsmoothie\b/i, e: '🥤' },
+    { re: /\bbarebell|\bquest bar\b|\bprotein bar\b|\bbarbell/i, e: '🍪' },
+    { re: /\bcookie|\bbrownie|\bbar\b/i, e: '🍪' },
+    { re: /\boat|\boatmeal\b|\bporridge\b|\bmuesli\b|\bgranola\b/i, e: '🥣' },
+    { re: /\brice\b|\bfried rice\b|\bbiryan/i, e: '🍛' },
+    { re: /\bpasta\b|\bspaghetti\b|\bnoodle/i, e: '🍝' },
+    { re: /\bpizza\b/i, e: '🍕' },
+    { re: /\bsandwich\b|\bwrap\b|\bbagel\b|\bbread\b|\btoast\b/i, e: '🥪' },
+    { re: /\bsalad\b/i, e: '🥗' },
+    { re: /\btofu\b|\btempeh\b|\bedamame\b/i, e: 'tofu' },
+    { re: /\bbean|\blentil|\bchickpea|\bhummus\b/i, e: '🫘' },
+    { re: /\bnut|\balmond|\bpeanut|\bcashew|\bwalnut/i, e: '🥜' },
+    { re: /\bavocado\b/i, e: '🥑' },
+    { re: /\bbroccoli\b|\bveggie|\bvegetable|\bspinach\b/i, e: '🥦' },
+    { re: /\bapple\b|\bbanana\b|\bberry|\bfruit\b/i, e: '🍎' },
+    { re: /\bpotato|\bfries\b/i, e: '🥔' },
+    { re: /\bico\s*cream\b|\bdessert\b/i, e: '🍨' }
+  ];
+  function mealEmoji(name) {
+    const s = String(name || '');
+    for (let i = 0; i < EMOJI_RULES.length; i++) {
+      if (EMOJI_RULES[i].re.test(s)) {
+        const e = EMOJI_RULES[i].e;
+        return e === 'tofu' ? '🧃' : e;
+      }
+    }
+    return '🍽️';
+  }
+
+  // Macros per unit: protein, kcal, carbs, fat, fiber. unit: 'serving'|'g'|'ml'|'piece'
+  // Foods matched by keyword; longer/more specific keys preferred via sort.
+  const FOOD_DB = [
+    { keys: ['barebells', 'barebell'], unit: 'serving', p: 20, k: 200, c: 18, f: 8, fb: 3, label: 'Barebells bar' },
+    { keys: ['quest bar', 'questbar'], unit: 'serving', p: 20, k: 200, c: 21, f: 8, fb: 14, label: 'Quest bar' },
+    { keys: ['protein bar', 'protien bar'], unit: 'serving', p: 20, k: 200, c: 20, f: 7, fb: 5, label: 'protein bar' },
+    { keys: ['protein shake', 'protien shake', 'shake', 'smoothie'], unit: 'serving', p: 25, k: 150, c: 8, f: 2, fb: 0, label: 'protein shake' },
+    { keys: ['whey', 'whey protein', 'protein powder', 'scoop of whey', 'scoop whey'], unit: 'scoop', p: 24, k: 120, c: 3, f: 1, fb: 0, label: 'whey scoop' },
+    { keys: ['casein'], unit: 'scoop', p: 24, k: 120, c: 3, f: 1, fb: 0, label: 'casein scoop' },
+    { keys: ['greek yogurt', 'greek yoghurt', 'skyr'], unit: 'g', p: 0.10, k: 0.97, c: 0.036, f: 0.005, fb: 0, label: 'Greek yogurt', typical: 170 },
+    { keys: ['yogurt', 'yoghurt'], unit: 'g', p: 0.05, k: 0.80, c: 0.08, f: 0.025, fb: 0, label: 'yogurt', typical: 150 },
+    { keys: ['cottage cheese', 'cottage'], unit: 'g', p: 0.11, k: 0.98, c: 0.034, f: 0.043, fb: 0, label: 'cottage cheese', typical: 150 },
+    { keys: ['egg white', 'egg whites'], unit: 'piece', p: 3.6, k: 17, c: 0.2, f: 0.1, fb: 0, label: 'egg white' },
+    { keys: ['eggs', 'egg'], unit: 'piece', p: 6.3, k: 72, c: 0.4, f: 4.8, fb: 0, label: 'egg' },
+    { keys: ['omelette', 'omelet'], unit: 'serving', p: 18, k: 200, c: 2, f: 14, fb: 0, label: 'omelette' },
+    { keys: ['chicken breast', 'chickenbreast'], unit: 'g', p: 0.31, k: 1.65, c: 0, f: 0.036, fb: 0, label: 'chicken breast', typical: 150 },
+    { keys: ['chicken thigh', 'chickenthigh'], unit: 'g', p: 0.26, k: 2.1, c: 0, f: 0.11, fb: 0, label: 'chicken thigh', typical: 120 },
+    { keys: ['chicken', 'grilled chicken'], unit: 'g', p: 0.27, k: 1.8, c: 0, f: 0.07, fb: 0, label: 'chicken', typical: 150 },
+    { keys: ['turkey'], unit: 'g', p: 0.29, k: 1.5, c: 0, f: 0.03, fb: 0, label: 'turkey', typical: 120 },
+    { keys: ['ground beef', 'mince', 'minced beef'], unit: 'g', p: 0.26, k: 2.5, c: 0, f: 0.15, fb: 0, label: 'ground beef', typical: 150 },
+    { keys: ['steak', 'ribeye', 'sirloin'], unit: 'g', p: 0.27, k: 2.5, c: 0, f: 0.15, fb: 0, label: 'steak', typical: 200 },
+    { keys: ['beef'], unit: 'g', p: 0.26, k: 2.5, c: 0, f: 0.15, fb: 0, label: 'beef', typical: 150 },
+    { keys: ['pork chop', 'pork'], unit: 'g', p: 0.27, k: 2.4, c: 0, f: 0.14, fb: 0, label: 'pork', typical: 150 },
+    { keys: ['bacon'], unit: 'piece', p: 3, k: 43, c: 0.1, f: 3.3, fb: 0, label: 'bacon strip' },
+    { keys: ['salmon'], unit: 'g', p: 0.22, k: 2.08, c: 0, f: 0.13, fb: 0, label: 'salmon', typical: 180 },
+    { keys: ['tuna can', 'canned tuna', 'tin of tuna'], unit: 'serving', p: 25, k: 110, c: 0, f: 1, fb: 0, label: 'tuna can' },
+    { keys: ['tuna'], unit: 'g', p: 0.28, k: 1.3, c: 0, f: 0.01, fb: 0, label: 'tuna', typical: 100 },
+    { keys: ['shrimp', 'prawn', 'prawns'], unit: 'g', p: 0.24, k: 0.99, c: 0.002, f: 0.003, fb: 0, label: 'shrimp', typical: 100 },
+    { keys: ['cod', 'white fish', 'fish'], unit: 'g', p: 0.18, k: 0.82, c: 0, f: 0.007, fb: 0, label: 'fish', typical: 150 },
+    { keys: ['tofu'], unit: 'g', p: 0.08, k: 0.76, c: 0.019, f: 0.048, fb: 0.01, label: 'tofu', typical: 150 },
+    { keys: ['tempeh'], unit: 'g', p: 0.19, k: 1.93, c: 0.09, f: 0.11, fb: 0.05, label: 'tempeh', typical: 100 },
+    { keys: ['edamame'], unit: 'g', p: 0.12, k: 1.22, c: 0.09, f: 0.05, fb: 0.05, label: 'edamame', typical: 100 },
+    { keys: ['lentils', 'lentil'], unit: 'g', p: 0.09, k: 1.16, c: 0.20, f: 0.004, fb: 0.08, label: 'lentils', typical: 150 },
+    { keys: ['black beans', 'kidney beans', 'chickpeas', 'beans'], unit: 'g', p: 0.08, k: 1.27, c: 0.22, f: 0.01, fb: 0.08, label: 'beans', typical: 130 },
+    { keys: ['hummus'], unit: 'g', p: 0.08, k: 1.66, c: 0.14, f: 0.10, fb: 0.06, label: 'hummus', typical: 50 },
+    { keys: ['quinoa'], unit: 'g', p: 0.044, k: 1.20, c: 0.21, f: 0.019, fb: 0.028, label: 'quinoa', typical: 150 },
+    { keys: ['brown rice', 'white rice', 'fried rice', 'rice'], unit: 'g', p: 0.027, k: 1.30, c: 0.28, f: 0.003, fb: 0.004, label: 'rice', typical: 180 },
+    { keys: ['pasta', 'spaghetti', 'noodles', 'noodle'], unit: 'g', p: 0.05, k: 1.31, c: 0.25, f: 0.011, fb: 0.018, label: 'pasta', typical: 180 },
+    { keys: ['oatmeal', 'oats', 'porridge'], unit: 'g', p: 0.13, k: 3.7, c: 0.66, f: 0.07, fb: 0.10, label: 'oats', typical: 40 },
+    { keys: ['granola'], unit: 'g', p: 0.10, k: 4.7, c: 0.64, f: 0.20, fb: 0.09, label: 'granola', typical: 50 },
+    { keys: ['bread', 'toast', 'slice of bread'], unit: 'piece', p: 4, k: 80, c: 15, f: 1, fb: 1.5, label: 'bread slice' },
+    { keys: ['bagel'], unit: 'piece', p: 10, k: 270, c: 53, f: 1.7, fb: 2, label: 'bagel' },
+    { keys: ['tortilla', 'wrap'], unit: 'piece', p: 4, k: 140, c: 24, f: 3.5, fb: 2, label: 'tortilla' },
+    { keys: ['pizza'], unit: 'piece', p: 12, k: 285, c: 36, f: 10, fb: 2.5, label: 'pizza slice' },
+    { keys: ['burger', 'hamburger', 'cheeseburger'], unit: 'serving', p: 28, k: 540, c: 40, f: 27, fb: 2, label: 'burger' },
+    { keys: ['sandwich'], unit: 'serving', p: 20, k: 350, c: 35, f: 12, fb: 3, label: 'sandwich' },
+    { keys: ['salad'], unit: 'serving', p: 8, k: 150, c: 12, f: 8, fb: 4, label: 'salad' },
+    { keys: ['broccoli'], unit: 'g', p: 0.028, k: 0.34, c: 0.07, f: 0.004, fb: 0.026, label: 'broccoli', typical: 100 },
+    { keys: ['spinach'], unit: 'g', p: 0.029, k: 0.23, c: 0.036, f: 0.004, fb: 0.022, label: 'spinach', typical: 80 },
+    { keys: ['avocado'], unit: 'piece', p: 3, k: 240, c: 12, f: 22, fb: 10, label: 'avocado' },
+    { keys: ['almond butter', 'peanut butter'], unit: 'g', p: 0.25, k: 5.9, c: 0.20, f: 0.50, fb: 0.06, label: 'nut butter', typical: 32 },
+    { keys: ['almonds', 'almond'], unit: 'g', p: 0.21, k: 5.8, c: 0.22, f: 0.50, fb: 0.125, label: 'almonds', typical: 28 },
+    { keys: ['peanuts', 'peanut'], unit: 'g', p: 0.26, k: 5.7, c: 0.16, f: 0.49, fb: 0.085, label: 'peanuts', typical: 28 },
+    { keys: ['cashews', 'cashew'], unit: 'g', p: 0.18, k: 5.5, c: 0.30, f: 0.44, fb: 0.03, label: 'cashews', typical: 28 },
+    { keys: ['walnuts', 'walnut'], unit: 'g', p: 0.15, k: 6.5, c: 0.14, f: 0.65, fb: 0.07, label: 'walnuts', typical: 28 },
+    { keys: ['nuts'], unit: 'g', p: 0.20, k: 6.0, c: 0.20, f: 0.50, fb: 0.08, label: 'nuts', typical: 28 },
+    { keys: ['cheddar', 'cheese'], unit: 'g', p: 0.25, k: 4.0, c: 0.013, f: 0.33, fb: 0, label: 'cheese', typical: 30 },
+    { keys: ['mozzarella'], unit: 'g', p: 0.22, k: 2.8, c: 0.022, f: 0.17, fb: 0, label: 'mozzarella', typical: 40 },
+    { keys: ['feta'], unit: 'g', p: 0.14, k: 2.6, c: 0.04, f: 0.21, fb: 0, label: 'feta', typical: 30 },
+    { keys: ['milk'], unit: 'ml', p: 0.034, k: 0.61, c: 0.048, f: 0.033, fb: 0, label: 'milk', typical: 250 },
+    { keys: ['soy milk', 'almond milk', 'oat milk'], unit: 'ml', p: 0.02, k: 0.40, c: 0.05, f: 0.015, fb: 0.005, label: 'alt milk', typical: 250 },
+    { keys: ['banana'], unit: 'piece', p: 1.3, k: 105, c: 27, f: 0.4, fb: 3.1, label: 'banana' },
+    { keys: ['apple'], unit: 'piece', p: 0.5, k: 95, c: 25, f: 0.3, fb: 4.4, label: 'apple' },
+    { keys: ['berries', 'blueberry', 'strawberry', 'raspberry'], unit: 'g', p: 0.01, k: 0.57, c: 0.14, f: 0.003, fb: 0.04, label: 'berries', typical: 100 },
+    { keys: ['potato', 'potatoes'], unit: 'g', p: 0.02, k: 0.77, c: 0.17, f: 0.001, fb: 0.022, label: 'potato', typical: 200 },
+    { keys: ['sweet potato'], unit: 'g', p: 0.016, k: 0.86, c: 0.20, f: 0.001, fb: 0.03, label: 'sweet potato', typical: 180 },
+    { keys: ['rice cake'], unit: 'piece', p: 0.7, k: 35, c: 7.3, f: 0.2, fb: 0.3, label: 'rice cake' },
+    { keys: ['sushi'], unit: 'serving', p: 20, k: 300, c: 40, f: 5, fb: 2, label: 'sushi' },
+    { keys: ['falafel'], unit: 'piece', p: 2.3, k: 57, c: 5.4, f: 3.0, fb: 1.5, label: 'falafel' },
+    { keys: ['sausage'], unit: 'piece', p: 8, k: 180, c: 1, f: 16, fb: 0, label: 'sausage' },
+    { keys: ['ham'], unit: 'g', p: 0.21, k: 1.45, c: 0.015, f: 0.055, fb: 0, label: 'ham', typical: 50 },
+    { keys: ['prosciutto'], unit: 'g', p: 0.25, k: 1.95, c: 0.002, f: 0.10, fb: 0, label: 'prosciutto', typical: 30 },
+    { keys: ['duck'], unit: 'g', p: 0.19, k: 3.37, c: 0, f: 0.28, fb: 0, label: 'duck', typical: 120 },
+    { keys: ['lamb'], unit: 'g', p: 0.25, k: 2.94, c: 0, f: 0.21, fb: 0, label: 'lamb', typical: 150 },
+    { keys: ['venison'], unit: 'g', p: 0.30, k: 1.58, c: 0, f: 0.032, fb: 0, label: 'venison', typical: 150 },
+    { keys: ['crab'], unit: 'g', p: 0.18, k: 0.87, c: 0, f: 0.011, fb: 0, label: 'crab', typical: 100 },
+    { keys: ['lobster'], unit: 'g', p: 0.19, k: 0.89, c: 0, f: 0.009, fb: 0, label: 'lobster', typical: 100 },
+    { keys: ['mussels'], unit: 'g', p: 0.12, k: 0.86, c: 0.037, f: 0.022, fb: 0, label: 'mussels', typical: 100 },
+    { keys: ['scallop', 'scallops'], unit: 'g', p: 0.17, k: 0.88, c: 0.025, f: 0.008, fb: 0, label: 'scallops', typical: 100 },
+    { keys: ['tempeh bacon'], unit: 'serving', p: 12, k: 120, c: 6, f: 6, fb: 3, label: 'tempeh bacon' },
+    { keys: ['seitan'], unit: 'g', p: 0.25, k: 1.40, c: 0.14, f: 0.02, fb: 0.01, label: 'seitan', typical: 100 },
+    { keys: ['protein cereal'], unit: 'g', p: 0.30, k: 3.7, c: 0.40, f: 0.05, fb: 0.08, label: 'protein cereal', typical: 40 },
+    { keys: ['milkshake'], unit: 'serving', p: 10, k: 350, c: 50, f: 12, fb: 0, label: 'milkshake' },
+    { keys: ['ice cream'], unit: 'serving', p: 4, k: 270, c: 31, f: 14, fb: 0.5, label: 'ice cream' },
+    { keys: ['chocolate'], unit: 'g', p: 0.05, k: 5.5, c: 0.60, f: 0.31, fb: 0.07, label: 'chocolate', typical: 30 },
+    { keys: ['croissant'], unit: 'piece', p: 4.5, k: 230, c: 26, f: 12, fb: 1.5, label: 'croissant' },
+    { keys: ['muffin'], unit: 'piece', p: 5, k: 420, c: 60, f: 18, fb: 1, label: 'muffin' },
+    { keys: ['pancake', 'pancakes'], unit: 'piece', p: 4, k: 90, c: 14, f: 2.5, fb: 0.5, label: 'pancake' },
+    { keys: ['waffle', 'waffles'], unit: 'piece', p: 6, k: 200, c: 25, f: 8, fb: 1, label: 'waffle' },
+    { keys: ['cereal'], unit: 'g', p: 0.08, k: 3.7, c: 0.80, f: 0.03, fb: 0.07, label: 'cereal', typical: 40 },
+    { keys: ['cornflakes'], unit: 'g', p: 0.07, k: 3.6, c: 0.84, f: 0.005, fb: 0.03, label: 'cornflakes', typical: 30 },
+    { keys: ['hummus wrap'], unit: 'serving', p: 12, k: 320, c: 40, f: 12, fb: 8, label: 'hummus wrap' },
+    { keys: ['burrito'], unit: 'serving', p: 25, k: 500, c: 55, f: 18, fb: 8, label: 'burrito' },
+    { keys: ['taco', 'tacos'], unit: 'piece', p: 8, k: 170, c: 13, f: 9, fb: 2, label: 'taco' },
+    { keys: ['soup'], unit: 'serving', p: 8, k: 150, c: 18, f: 5, fb: 3, label: 'soup' },
+    { keys: ['broth'], unit: 'serving', p: 3, k: 40, c: 2, f: 1, fb: 0, label: 'broth' },
+    { keys: ['edamame bowl'], unit: 'serving', p: 18, k: 250, c: 25, f: 8, fb: 8, label: 'edamame bowl' },
+    { keys: ['poke', 'poke bowl'], unit: 'serving', p: 30, k: 450, c: 45, f: 12, fb: 4, label: 'poke bowl' },
+    { keys: ['acai', 'açaí'], unit: 'serving', p: 5, k: 280, c: 45, f: 10, fb: 6, label: 'acai bowl' },
+    { keys: ['granola bar'], unit: 'serving', p: 4, k: 180, c: 28, f: 7, fb: 2, label: 'granola bar' },
+    { keys: ['rice and beans', 'rice & beans'], unit: 'serving', p: 12, k: 350, c: 60, f: 4, fb: 10, label: 'rice and beans' },
+    { keys: ['paprika'], unit: 'g', p: 0.14, k: 2.8, c: 0.54, f: 0.13, fb: 0.35, label: 'paprika', typical: 5 }
+  ];
+
+  // Sort foods so longer keys match first
+  FOOD_DB.forEach(function (food) {
+    food.keys = food.keys.slice().sort(function (a, b) { return b.length - a.length; });
+  });
+  FOOD_DB.sort(function (a, b) {
+    return Math.max.apply(null, b.keys.map(function (k) { return k.length; })) -
+           Math.max.apply(null, a.keys.map(function (k) { return k.length; }));
+  });
+
+  const WORD_NUM = {
+    a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5,
+    six: 6, seven: 7, eight: 8, nine: 9, ten: 10, half: 0.5
+  };
+
+  function zeros() { return { p: 0, k: 0, c: 0, f: 0, fb: 0, matches: [] }; }
+  function addMacros(a, b, mult) {
+    mult = mult == null ? 1 : mult;
+    a.p += b.p * mult; a.k += b.k * mult; a.c += b.c * mult; a.f += b.f * mult; a.fb += b.fb * mult;
+  }
+
+  function parseQuantityPrefix(str) {
+    // returns { qty, unit, rest } where unit in g|ml|scoop|cup|can|piece|x|null
+    let s = str.trim();
+    let qty = null, unit = null;
+    // 200g / 200 g / 250ml
+    let m = s.match(/^(\d+(?:[.,]\d+)?)\s*(g|gram|grams|kg|ml|milliliters?|l|oz|ounce|ounces)\b[, ]*/i);
+    if (m) {
+      qty = parseFloat(m[1].replace(',', '.'));
+      unit = m[2].toLowerCase();
+      if (unit === 'kg') { qty *= 1000; unit = 'g'; }
+      else if (unit.indexOf('gram') === 0 || unit === 'g') unit = 'g';
+      else if (unit === 'l') { qty *= 1000; unit = 'ml'; }
+      else if (unit.indexOf('mill') === 0 || unit === 'ml') unit = 'ml';
+      else if (unit.indexOf('oz') === 0 || unit.indexOf('ounce') === 0) { qty *= 28.35; unit = 'g'; }
+      return { qty: qty, unit: unit, rest: s.slice(m[0].length).trim() };
+    }
+    // 2x / x2 / 2 x
+    m = s.match(/^(?:x\s*)?(\d+(?:[.,]\d+)?)\s*x\b[, ]*/i) || s.match(/^x\s*(\d+(?:[.,]\d+)?)\b[, ]*/i);
+    if (m) {
+      return { qty: parseFloat(m[1].replace(',', '.')), unit: 'x', rest: s.slice(m[0].length).trim() };
+    }
+    // 2 scoops / 1 scoop / 1 can / 2 cups / 3 slices
+    m = s.match(/^(\d+(?:[.,]\d+)?)\s*(scoops?|cans?|cups?|slices?|pieces?|portions?|servings?|breasts?|thighs?|bars?)\b[, ]*/i);
+    if (m) {
+      qty = parseFloat(m[1].replace(',', '.'));
+      const u = m[2].toLowerCase();
+      if (u.indexOf('scoop') === 0) unit = 'scoop';
+      else if (u.indexOf('can') === 0) unit = 'can';
+      else if (u.indexOf('cup') === 0) unit = 'cup';
+      else unit = 'piece';
+      return { qty: qty, unit: unit, rest: s.slice(m[0].length).trim() };
+    }
+    // word numbers: three eggs
+    m = s.match(/^(a|an|one|two|three|four|five|six|seven|eight|nine|ten|half)\b[, ]*/i);
+    if (m) {
+      return { qty: WORD_NUM[m[1].toLowerCase()], unit: 'x', rest: s.slice(m[0].length).trim() };
+    }
+    // leading plain number: 3 eggs
+    m = s.match(/^(\d+(?:[.,]\d+)?)\b[, ]*/);
+    if (m) {
+      return { qty: parseFloat(m[1].replace(',', '.')), unit: 'x', rest: s.slice(m[0].length).trim() };
+    }
+    return { qty: null, unit: null, rest: s };
+  }
+
+  function findFood(text) {
+    const lower = text.toLowerCase();
+    let best = null;
+    for (let i = 0; i < FOOD_DB.length; i++) {
+      const food = FOOD_DB[i];
+      for (let k = 0; k < food.keys.length; k++) {
+        const key = food.keys[k];
+        const idx = lower.indexOf(key);
+        if (idx < 0) continue;
+        // require simple boundaries so "ham" doesn't match "shake" etc. already distinct;
+        // prefer the longest key match overall
+        if (!best || key.length > best.key.length) {
+          best = { food: food, key: key, index: idx };
+        }
+      }
+    }
+    return best;
+  }
+
+  function macrosForFood(food, q) {
+    let mult = 1;
+    let detail = food.label;
+    if (q && q.qty != null) {
+      if (food.unit === 'g' || food.unit === 'ml') {
+        if (q.unit === 'g' || q.unit === 'ml') {
+          mult = q.qty;
+          detail = q.qty + (food.unit === 'ml' ? 'ml' : 'g') + ' ' + food.label;
+        } else if (q.unit === 'cup') {
+          mult = q.qty * (food.unit === 'ml' ? 240 : 150);
+          detail = q.qty + ' cup ' + food.label;
+        } else {
+          mult = q.qty * (food.typical || 100);
+          detail = q.qty + '× ' + food.label;
+        }
+      } else if (food.unit === 'scoop') {
+        mult = q.qty;
+        detail = mult + ' scoop ' + food.label;
+      } else if (food.unit === 'piece' || food.unit === 'serving') {
+        if (q.unit === 'g' && food.typical) {
+          mult = q.qty / food.typical;
+          detail = q.qty + 'g ' + food.label;
+        } else {
+          mult = q.qty;
+          detail = mult + '× ' + food.label;
+        }
+      } else {
+        mult = q.qty;
+      }
+      // quantity applies only to the first food in a multi-food segment
+    } else {
+      if ((food.unit === 'g' || food.unit === 'ml') && food.typical) {
+        mult = food.typical;
+        detail = '~' + food.typical + (food.unit === 'ml' ? 'ml' : 'g') + ' ' + food.label;
+      } else {
+        mult = 1;
+        detail = food.label;
+      }
+    }
+    return {
+      p: food.p * mult,
+      k: food.k * mult,
+      c: food.c * mult,
+      f: food.f * mult,
+      fb: food.fb * mult,
+      detail: detail
+    };
+  }
+  function estimateSegment(seg) {
+    const q = parseQuantityPrefix(seg);
+    let rest = (q.rest || seg).trim();
+    if (!rest) return null;
+    // Match multiple foods in one phrase (e.g. "beef rice") by repeatedly
+    // taking the longest key and removing it from the remaining text.
+    const pieces = [];
+    let guard = 0;
+    let usedQty = false;
+    while (rest && guard++ < 6) {
+      const found = findFood(rest);
+      if (!found) break;
+      const qty = (!usedQty && q.qty != null) ? q : null;
+      usedQty = usedQty || (qty != null);
+      pieces.push(macrosForFood(found.food, qty));
+      // remove matched key once
+      const re = new RegExp(found.key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      rest = rest.replace(re, ' ').replace(/\s+/g, ' ').trim();
+    }
+    if (!pieces.length) return null;
+    if (pieces.length === 1) return pieces[0];
+    const merged = { p: 0, k: 0, c: 0, f: 0, fb: 0, detail: '' };
+    pieces.forEach(function (p, i) {
+      merged.p += p.p; merged.k += p.k; merged.c += p.c; merged.f += p.f; merged.fb += p.fb;
+      merged.detail += (i ? ' · ' : '') + p.detail;
+    });
+    return merged;
+  }
+
+  function estimateFromDescription(text, hasPhoto) {
+    const raw = String(text || '').trim();
+    if (!raw) {
+      return {
+        protein: 25, kcal: 200, carbs: 10, fat: 5, fiber: 1,
+        rough: true, matches: [], label: 'rough guess',
+        note: hasPhoto ? 'Photo only — rough guess' : 'Add a description for a better estimate'
+      };
+    }
+    // split on and/,/+/&/with (as separator when surrounding spaces)
+    const parts = raw.split(/\s*(?:,|\/|\+|&|\band\b|\bwith\b|\balong with\b)\s+/i)
+      .map(function (s) { return s.trim(); })
+      .filter(Boolean);
+    const total = zeros();
+    parts.forEach(function (part) {
+      const est = estimateSegment(part);
+      if (est) {
+        addMacros(total, est, 1);
+        total.matches.push(est.detail);
+      }
+    });
+    if (!total.matches.length) {
+      // try whole string as one segment
+      const est = estimateSegment(raw);
+      if (est) {
+        addMacros(total, est, 1);
+        total.matches.push(est.detail);
+      }
+    }
+    if (!total.matches.length) {
+      return {
+        protein: 20, kcal: 250, carbs: 20, fat: 8, fiber: 2,
+        rough: true, matches: [], label: 'rough guess',
+        note: 'No foods matched — rough guess'
+      };
+    }
+    return {
+      protein: Math.round(total.p),
+      kcal: Math.round(total.k),
+      carbs: Math.round(total.c),
+      fat: Math.round(total.f * 10) / 10,
+      fiber: Math.round(total.fb * 10) / 10,
+      rough: false,
+      matches: total.matches,
+      label: 'estimated',
+      note: total.matches.join(' · ')
+    };
+  }
+
+  const IDB_NAME = 'protein-app-photos';
+  const IDB_STORE = 'photos';
+
+  // Seed photos live ONLY in this file — never written to localStorage
+  const SEED_PHOTOS = {};
+  const SEED = [];
+
+  let state = { schema: SCHEMA, goal: DEFAULT_TARGET, entries: [] };
+  let settings = { target: DEFAULT_TARGET, statsPeriod: '30d' };
+  let viewDate = todayStr();
+  let editingId = null;
+  let pendingPhoto = null; // data URL for unsaved photo
+  let photoCache = {}; // id -> dataURL
+  let flipped = {}; // id -> bool
+  let targetSheetOpen = false;
+  let currentEst = null;
+  let estManualOverride = false;
+
+  function roundTo5(n) {
+    return Math.round(Number(n) / 5) * 5;
+  }
+  function clampTarget(n) {
+    n = roundTo5(Number(n) || DEFAULT_TARGET);
+    return Math.max(50, Math.min(300, n));
+  }
+  function getTarget() { return clampTarget(settings.target); }
+  function amberStart(t) {
+    t = t != null ? t : getTarget();
+    // Red below 50% of target; amber from 50%
+    return Math.max(5, roundTo5(t * 0.5));
+  }
+  function greenStart(t) {
+    t = t != null ? t : getTarget();
+    var a = amberStart(t);
+    // Green from 80% of target
+    var g = Math.max(a + 5, roundTo5(t * 0.8));
+    // Keep green below target when possible
+    if (g >= t) g = Math.max(a + 5, roundTo5(t - 5));
+    return g;
+  }
+  function gaugeMaxFor(t) {
+    t = t != null ? t : getTarget();
+    return Math.max(200, Math.ceil((t * 1.3) / 10) * 10);
+  }
+  function gaugeMax() { return gaugeMaxFor(getTarget()); }
+
+  // Drag / popover state for in-gauge target editing
+  let gaugeDrag = null; // { frozenMax, pointerId, moved, startAngle }
+  let gaugeDisplayMax = null; // frozen or animating max; null = live gaugeMax()
+  let goalPopOpen = false;
+  let animMaxRaf = null;
+  function loadSettings() {
+    let s = null;
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (raw) s = JSON.parse(raw);
+    } catch (e) {}
+    settings = {
+      target: clampTarget(s && s.target != null ? s.target : DEFAULT_TARGET),
+      statsPeriod: (s && ['7d','30d','all'].indexOf(s.statsPeriod) >= 0) ? s.statsPeriod : '30d'
+    };
+  }
+  function persistSettings() {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+        target: getTarget(),
+        statsPeriod: settings.statsPeriod
+      }));
+    } catch (e) {
+      console.warn('settings persist failed', e);
+    }
+    // keep meta.goal in sync for export/import compatibility (does not change STORAGE_KEY)
+    state.goal = getTarget();
+  }
+
+  function todayStr() {
+    const d = new Date();
+    return ymd(d);
+  }
+  function ymd(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function parseYmd(s) {
+    const p = s.split('-').map(Number);
+    return new Date(p[0], p[1] - 1, p[2]);
+  }
+  function addDays(s, n) {
+    const d = parseYmd(s);
+    d.setDate(d.getDate() + n);
+    return ymd(d);
+  }
+  function formatDateLabel(s) {
+    return parseYmd(s).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  }
+  function nowTime() {
+    const d = new Date();
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+  function uid() {
+    return 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  /* ---------- IndexedDB for user photos ---------- */
+  function openIdb() {
+    return new Promise(function (resolve, reject) {
+      if (!window.indexedDB) { resolve(null); return; }
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = function () {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+      };
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { resolve(null); };
+    });
+  }
+  function idbGet(id) {
+    return openIdb().then(function (db) {
+      if (!db) return null;
+      return new Promise(function (resolve) {
+        try {
+          const tx = db.transaction(IDB_STORE, 'readonly');
+          const req = tx.objectStore(IDB_STORE).get(id);
+          req.onsuccess = function () { resolve(req.result || null); };
+          req.onerror = function () { resolve(null); };
+        } catch (e) { resolve(null); }
+      });
+    });
+  }
+  function idbSet(id, dataUrl) {
+    return openIdb().then(function (db) {
+      if (!db) return false;
+      return new Promise(function (resolve) {
+        try {
+          const tx = db.transaction(IDB_STORE, 'readwrite');
+          tx.objectStore(IDB_STORE).put(dataUrl, id);
+          tx.oncomplete = function () { resolve(true); };
+          tx.onerror = function () { resolve(false); };
+        } catch (e) { resolve(false); }
+      });
+    });
+  }
+  function idbDel(id) {
+    return openIdb().then(function (db) {
+      if (!db) return;
+      try {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        tx.objectStore(IDB_STORE).delete(id);
+      } catch (e) {}
+    });
+  }
+
+  function stripPhoto(entry) {
+    const e = Object.assign({}, entry);
+    delete e.photo;
+    return e;
+  }
+
+  function persistMeta() {
+    try {
+      const clean = {
+        schema: SCHEMA,
+        goal: getTarget(),
+        entries: state.entries.map(stripPhoto)
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(clean));
+      try { localStorage.removeItem(LEGACY_KEY); } catch (e) {}
+    } catch (e) {
+      console.warn('meta persist failed', e);
+    }
+  }
+
+  function mergeSeedInto(entries) {
+    const byId = {};
+    entries.forEach(function (e) { byId[e.id] = e; });
+    SEED.forEach(function (seed) {
+      const cur = byId[seed.id];
+      if (!cur) {
+        byId[seed.id] = Object.assign({}, seed);
+        return;
+      }
+      // bump missing nutrition / insights from seed; never overwrite user edits to name/protein if present
+      ['kcal', 'carbs_g', 'fat_g', 'fiber_g', 'insights', 'estimates'].forEach(function (k) {
+        if (cur[k] == null || cur[k] === '' || (k === 'insights' && (!cur[k] || !cur[k].length))) {
+          cur[k] = seed[k];
+        }
+      });
+      // keep seed date/time/name/protein if somehow wiped
+      if (!cur.name) cur.name = seed.name;
+      if (cur.protein_g == null) cur.protein_g = seed.protein_g;
+      if (!cur.date) cur.date = seed.date;
+      if (!cur.time) cur.time = seed.time;
+      delete cur.photo; // photos never live in meta
+    });
+    return Object.keys(byId).map(function (k) { return byId[k]; });
+  }
+
+  function loadMeta() {
+    let data = null;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_KEY);
+      if (raw) data = JSON.parse(raw);
+    } catch (e) {}
+
+    if (data && Array.isArray(data.entries) && data.entries.length) {
+      // Migrate: drop any embedded photo blobs from legacy v1
+      const migrated = data.entries.map(function (e) {
+        const copy = Object.assign({}, e);
+        // If legacy had inline photo and it's a seed id, drop it (use SEED_PHOTOS)
+        // If legacy had inline photo for a user entry, we'll try to move to IDB below
+        return copy;
+      });
+      state = {
+        schema: SCHEMA,
+        goal: (data.goal != null ? data.goal : getTarget()),
+        entries: mergeSeedInto(migrated)
+      };
+      // Fire-and-forget: migrate non-seed inline photos to IDB
+      migrated.forEach(function (e) {
+        if (e.photo && !SEED_PHOTOS[e.id]) {
+          idbSet(e.id, e.photo).then(function () {
+            photoCache[e.id] = e.photo;
+          });
+        }
+        delete e.photo;
+      });
+      state.entries = state.entries.map(stripPhoto);
+      persistMeta();
+      return;
+    }
+
+    state = { schema: SCHEMA, goal: getTarget(), entries: [] };
+    persistMeta();
+  }
+
+  function resolvePhoto(entry) {
+    if (!entry) return Promise.resolve(null);
+    if (photoCache[entry.id]) return Promise.resolve(photoCache[entry.id]);
+    if (SEED_PHOTOS[entry.id]) {
+      photoCache[entry.id] = SEED_PHOTOS[entry.id];
+      return Promise.resolve(SEED_PHOTOS[entry.id]);
+    }
+    return idbGet(entry.id).then(function (url) {
+      if (url) photoCache[entry.id] = url;
+      return url;
+    });
+  }
+
+  function entriesFor(date) {
+    return state.entries
+      .filter(function (e) { return e.date === date; })
+      .sort(function (a, b) {
+        return (a.time || '').localeCompare(b.time || '') || String(a.id).localeCompare(String(b.id));
+      });
+  }
+  function dayTotal(date) {
+    return entriesFor(date).reduce(function (s, e) { return s + (Number(e.protein_g) || 0); }, 0);
+  }
+  function dayBand(g) {
+    const a = amberStart(), gr = greenStart();
+    if (g >= gr) return 'green';
+    if (g >= a) return 'amber';
+    if (g > 0) return 'red';
+    return null;
+  }
+  function dayColor(g) {
+    const b = dayBand(g);
+    return b ? COLORS[b] : null;
+  }
+  function mealBand(g) {
+    if (g > 35) return 'sgreen';
+    if (g >= 20) return 'green';
+    if (g >= 10) return 'amber';
+    return 'red';
+  }
+  function mealColor(g) { return COLORS[mealBand(g)]; }
+  function statusInfo(g) {
+    const a = amberStart(), gr = greenStart();
+    if (g >= gr) return { label: 'Great', color: COLORS.green };
+    if (g >= a) return { label: 'Fair', color: COLORS.amber };
+    return { label: 'Low', color: COLORS.red };
+  }
+  function hintText(g) {
+    const goal = getTarget(), a = amberStart(), gr = greenStart();
+    if (g >= goal) return 'Goal hit';
+    if (g >= gr) return (goal - g) + 'g to goal';
+    if (g >= a) return (gr - g) + 'g to green';
+    if (g > 0) return (a - g) + 'g to amber';
+    return 'Log a meal to start';
+  }
+
+  function polar(cx, cy, r, deg) {
+    const rad = (deg * Math.PI) / 180;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  }
+  const START = 150, SWEEP = 240;
+  function valueToAngle(v, maxG) {
+    maxG = maxG || gaugeMax();
+    return START + SWEEP * (Math.max(0, Math.min(maxG, v)) / maxG);
+  }
+  function describeArc(cx, cy, r, a0, a1) {
+    const s = polar(cx, cy, r, a0), e = polar(cx, cy, r, a1);
+    const large = (a1 - a0) > 180 ? 1 : 0;
+    return 'M ' + s.x + ' ' + s.y + ' A ' + r + ' ' + r + ' 0 ' + large + ' 1 ' + e.x + ' ' + e.y;
+  }
+
+  function effectiveGaugeMax() {
+    return gaugeDisplayMax != null ? gaugeDisplayMax : gaugeMax();
+  }
+
+  function applyTarget(t, opts) {
+    opts = opts || {};
+    const next = clampTarget(t);
+    const prevMax = gaugeMax();
+    settings.target = next;
+    persistSettings();
+    try { document.getElementById('fTarget').value = next; } catch (e) {}
+    updateTargetBandsHint(next);
+    if (goalPopOpen) {
+      document.getElementById('goalPopVal').textContent = next;
+    }
+    if (opts.animateMax) {
+      const newMax = gaugeMaxFor(next);
+      animateGaugeMax(prevMax, newMax, function () {
+        gaugeDisplayMax = null;
+        render();
+      });
+    } else if (!opts.skipRender) {
+      gaugeDisplayMax = null;
+      render();
+    }
+  }
+
+  function animateGaugeMax(fromMax, toMax, done) {
+    if (animMaxRaf) cancelAnimationFrame(animMaxRaf);
+    if (fromMax === toMax) { if (done) done(); return; }
+    const start = performance.now();
+    const dur = 280;
+    function frame(now) {
+      const t = Math.min(1, (now - start) / dur);
+      const ease = 1 - Math.pow(1 - t, 3);
+      gaugeDisplayMax = Math.round(fromMax + (toMax - fromMax) * ease);
+      drawGauge(dayTotal(viewDate));
+      if (t < 1) animMaxRaf = requestAnimationFrame(frame);
+      else {
+        animMaxRaf = null;
+        gaugeDisplayMax = null;
+        if (done) done();
+      }
+    }
+    animMaxRaf = requestAnimationFrame(frame);
+  }
+
+  function angleFromEvent(evt, svg) {
+    const pt = svg.createSVGPoint();
+    const e = evt.touches && evt.touches[0] ? evt.touches[0] : evt;
+    pt.x = e.clientX; pt.y = e.clientY;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    const local = pt.matrixTransform(ctm.inverse());
+    const cx = 160, cy = 155;
+    let deg = Math.atan2(local.y - cy, local.x - cx) * 180 / Math.PI;
+    if (deg < 0) deg += 360;
+    return deg;
+  }
+  function angleToValue(deg, maxG) {
+    // Map along the gauge arc START..START+SWEEP (150 → 390/30)
+    let a = deg;
+    // Normalize into a continuous sweep starting at START
+    let rel = a - START;
+    if (rel < 0) rel += 360;
+    // Clamp to sweep; values outside pull to ends
+    if (rel > SWEEP + 20 && rel < 360 - 20) {
+      // far from arc — pick nearer end
+      rel = (rel < 180) ? 0 : SWEEP;
+    } else {
+      rel = Math.max(0, Math.min(SWEEP, rel));
+    }
+    const v = (rel / SWEEP) * maxG;
+    return clampTarget(v);
+  }
+
+  function drawGauge(total) {
+    const svg = document.getElementById('gaugeSvg');
+    const cx = 160, cy = 155, r = 108, stroke = 18, gap = 3;
+    const goal = getTarget();
+    const maxG = effectiveGaugeMax();
+    const a = amberStart(goal), gr = greenStart(goal);
+    const dragging = !!(gaugeDrag && gaugeDrag.moved);
+    const bands = [
+      { from: 0, to: a, color: COLORS.red },
+      { from: a, to: gr, color: COLORS.amber },
+      { from: gr, to: maxG, color: COLORS.green }
+    ];
+    let html = '<path d="' + describeArc(cx, cy, r, START, START + SWEEP) + '" fill="none" stroke="#E5E5EA" stroke-width="' + stroke + '" stroke-linecap="round"/>';
+    bands.forEach(function (b, i) {
+      let a0 = valueToAngle(b.from, maxG), a1 = valueToAngle(b.to, maxG);
+      if (i > 0) a0 += gap / 2;
+      if (i < bands.length - 1) a1 -= gap / 2;
+      if (a1 <= a0) return;
+      html += '<path d="' + describeArc(cx, cy, r, a0, a1) + '" fill="none" stroke="' + b.color + '" stroke-width="' + stroke + '" stroke-linecap="round"/>';
+    });
+
+    const goalVisual = Math.min(goal, maxG);
+    const ga = valueToAngle(goalVisual, maxG);
+    const gl = polar(cx, cy, r + 42, ga);
+
+    function labelsCollide(v) {
+      // hide tick if too close in angle to the goal marker
+      const ang = valueToAngle(Math.min(v, maxG), maxG);
+      return Math.abs(ang - ga) < 14 || Math.abs(ang - ga) > 360 - 14;
+    }
+    function labelAt(v, text, dy) {
+      if (labelsCollide(v) && v !== 0 && v !== maxG) return '';
+      // still show 0 and max unless extremely close
+      if ((v === 0 || v === maxG) && Math.abs(valueToAngle(Math.min(v, maxG), maxG) - ga) < 10) return '';
+      const p = polar(cx, cy, r + 28, valueToAngle(Math.min(v, maxG), maxG));
+      return '<text class="band-label" x="' + p.x + '" y="' + (p.y + (dy || 0)) + '" text-anchor="middle" dominant-baseline="middle">' + text + '</text>';
+    }
+    html += labelAt(0, '0', 4) + labelAt(a, String(a)) + labelAt(gr, String(gr)) + labelAt(maxG, String(maxG), 4);
+
+    // Refined goal tick (prior polished style) + generous invisible hit area
+    const gin = polar(cx, cy, r - stroke / 2 - 4, ga);
+    const gout = polar(cx, cy, r + stroke / 2 + 4, ga);
+    const gmid = polar(cx, cy, r, ga);
+    html += '<g id="goalKnob" class="goal-hit" role="slider" aria-valuemin="50" aria-valuemax="300" aria-valuenow="' + goal + '" aria-label="Daily protein goal">' +
+      '<circle cx="' + gmid.x + '" cy="' + gmid.y + '" r="22" fill="transparent" stroke="none"/>' +
+      '<line id="goalTick" x1="' + gin.x + '" y1="' + gin.y + '" x2="' + gout.x + '" y2="' + gout.y + '" stroke="#1C1C1E" stroke-width="' + (dragging ? 3 : 2) + '" stroke-linecap="round"/>' +
+      '</g>';
+
+    if (dragging) {
+      // Small refined pill while dragging
+      const pw = 52, ph = 18;
+      const px = gl.x - pw / 2, py = gl.y - ph / 2;
+      html += '<g id="goalLabel" class="goal-label-hit" pointer-events="none">' +
+        '<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="' + ph + '" rx="9" fill="#1C1C1E"/>' +
+        '<text class="goal-drag-pill" x="' + gl.x + '" y="' + gl.y + '" text-anchor="middle" dominant-baseline="middle">Goal ' + goal + '</text>' +
+        '</g>';
+    } else {
+      html += '<text class="band-label goal-label-hit" id="goalLabel" x="' + gl.x + '" y="' + gl.y +
+        '" text-anchor="middle" dominant-baseline="middle" style="fill:#1C1C1E;font-weight:700">Goal ' + goal + '</text>';
+      // Expand label hit via transparent rect behind
+      const lw = 64, lh = 22;
+      html += '<rect id="goalLabelHit" class="goal-hit" x="' + (gl.x - lw / 2) + '" y="' + (gl.y - lh / 2) +
+        '" width="' + lw + '" height="' + lh + '" fill="transparent"/>';
+    }
+
+    // Current-value needle — prior polished style
+    const mp = polar(cx, cy, r, valueToAngle(Math.min(total, maxG), maxG));
+    const mc = dayColor(total) || COLORS.red;
+    if (dragging) {
+      html += '<circle cx="' + mp.x + '" cy="' + mp.y + '" r="11" fill="#fff" stroke="' + mc + '" stroke-width="4" pointer-events="none"/>';
+    } else {
+      html += '<circle cx="' + mp.x + '" cy="' + mp.y + '" r="11" fill="#fff" stroke="' + mc + '" stroke-width="4" pointer-events="none">' +
+        '<animate attributeName="r" from="0" to="11" dur="0.45s" fill="freeze"/></circle>';
+    }
+
+    svg.innerHTML = html;
+    document.getElementById('totalNum').textContent = Math.round(total);
+    const st = statusInfo(total);
+    const pill = document.getElementById('statusPill');
+    pill.textContent = st.label;
+    pill.style.background = st.color;
+    document.getElementById('gaugeHint').textContent = hintText(total);
+    bindGoalKnob();
+  }
+
+    let goalKnobBound = false;
+  function bindGoalKnob() {
+    if (goalKnobBound) return;
+    goalKnobBound = true;
+    const svg = document.getElementById('gaugeSvg');
+    const wrap = document.getElementById('gaugeWrap');
+
+    function targetEl(id) { return document.getElementById(id); }
+
+    function onDown(evt) {
+      const knob = targetEl('goalKnob');
+      if (!knob || !knob.contains(evt.target) && evt.target.id !== 'goalKnob' && !(evt.target.closest && evt.target.closest('#goalKnob'))) {
+        // allow events delegated from svg
+      }
+      const isKnob = evt.target.closest && evt.target.closest('#goalKnob');
+      const isLabel = evt.target.id === 'goalLabel' || evt.target.id === 'goalLabelHit' ||
+        (evt.target.closest && evt.target.closest('#goalLabel, #goalLabelHit'));
+      // Label: allow drag if user moves; tap opens popover on pointerup via !moved
+      if (!isKnob && !isLabel) return;
+      evt.preventDefault();
+      evt.stopPropagation();
+      closeGoalPop();
+      const pid = evt.pointerId != null ? evt.pointerId : 1;
+      try { svg.setPointerCapture(pid); } catch (e) {}
+      gaugeDrag = {
+        frozenMax: gaugeMax(),
+        pointerId: pid,
+        moved: false,
+        startX: evt.clientX,
+        startY: evt.clientY
+      };
+      gaugeDisplayMax = gaugeDrag.frozenMax;
+      wrap.classList.add('dragging');
+    }
+    function onMove(evt) {
+      if (!gaugeDrag) return;
+      if (gaugeDrag.pointerId != null && evt.pointerId != null && evt.pointerId !== gaugeDrag.pointerId) return;
+      const dx = evt.clientX - gaugeDrag.startX, dy = evt.clientY - gaugeDrag.startY;
+      if (!gaugeDrag.moved && (dx * dx + dy * dy) < 25) return;
+      gaugeDrag.moved = true;
+      evt.preventDefault();
+      const deg = angleFromEvent(evt, svg);
+      if (deg == null) return;
+      let goal = angleToValue(deg, gaugeDrag.frozenMax);
+      let rel = deg - START; if (rel < 0) rel += 360;
+      if (rel >= SWEEP - 1) {
+        const over = Math.min(40, Math.max(0, rel - SWEEP));
+        goal = clampTarget(gaugeDrag.frozenMax + (300 - gaugeDrag.frozenMax) * (over / 40));
+      }
+      if (goal !== settings.target) {
+        settings.target = goal;
+        state.goal = goal;
+        drawGauge(dayTotal(viewDate));
+        document.getElementById('gaugeHint').textContent = 'Goal ' + goal + 'g';
+      }
+    }
+    function onUp(evt) {
+      if (!gaugeDrag) return;
+      if (gaugeDrag.pointerId != null && evt.pointerId != null && evt.pointerId !== gaugeDrag.pointerId) return;
+      const wasDrag = gaugeDrag.moved;
+      const frozen = gaugeDrag.frozenMax;
+      gaugeDrag = null;
+      wrap.classList.remove('dragging');
+      try { svg.releasePointerCapture(evt.pointerId); } catch (e) {}
+      if (!wasDrag) {
+        gaugeDisplayMax = null;
+        openGoalPop();
+        return;
+      }
+      const finalGoal = getTarget();
+      persistSettings();
+      try { document.getElementById('fTarget').value = finalGoal; } catch (e) {}
+      updateTargetBandsHint(finalGoal);
+      const newMax = gaugeMaxFor(finalGoal);
+      animateGaugeMax(frozen, newMax, function () { render(); });
+      renderWeek();
+      renderStats();
+    }
+
+    svg.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }
+
+    function openGoalPop() {
+    goalPopOpen = true;
+    const pop = document.getElementById('goalPop');
+    document.getElementById('goalPopVal').textContent = getTarget();
+    pop.classList.add('open');
+  }
+  function closeGoalPop() {
+    goalPopOpen = false;
+    const pop = document.getElementById('goalPop');
+    if (pop) pop.classList.remove('open');
+  }
+
+    function mondayOf(dateStr) {
+    const d = parseYmd(dateStr);
+    const day = d.getDay();
+    d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+    return ymd(d);
+  }
+
+  function renderWeek() {
+    const mon = mondayOf(viewDate);
+    const initials = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    const today = todayStr();
+    let html = '';
+    for (let i = 0; i < 7; i++) {
+      const ds = addDays(mon, i);
+      const total = dayTotal(ds);
+      const color = dayColor(total);
+      let cls = 'week-dot', style = '';
+      if (!(ds > today) && total > 0 && color) {
+        cls += ' filled';
+        style = 'background:' + color + ';border-color:' + color;
+      }
+      if (ds === viewDate) cls += ' viewed';
+      html += '<div class="week-day"><div class="' + cls + '" style="' + style + '"></div><div class="week-initial">' + initials[i] + '</div></div>';
+    }
+    document.getElementById('weekRow').innerHTML = html;
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
+
+  function renderLog() {
+    const list = document.getElementById('logList');
+    const entries = entriesFor(viewDate);
+    if (!entries.length) {
+      list.innerHTML = '<div class="empty-hero">' +
+        '<div class="emoji">🥗</div>' +
+        '<h3>Log your first meal</h3>' +
+        '<p>Snap a photo or type what you ate — we\'ll estimate the protein.</p>' +
+        '<button type="button" class="empty-cta" id="emptyAddBtn">Add meal</button>' +
+        '</div>';
+      const btn = document.getElementById('emptyAddBtn');
+      if (btn) btn.addEventListener('click', openAdd);
+      return;
+    }
+    list.innerHTML = entries.map(function (e) {
+      const g = Number(e.protein_g) || 0;
+      const c = mealColor(g);
+      const pct = Math.min(100, (g / 60) * 100);
+      const power = g > 35 ? '<span class="power-pill">POWER MEAL</span>' : '';
+      const emo = mealEmoji(e.name);
+      return '<div class="log-row" data-id="' + escapeHtml(e.id) + '">' +
+        '<div class="meal-emoji" style="--emoji-ring:' + c + '" aria-hidden="true">' + emo + '</div>' +
+        '<div class="log-main"><div class="log-name">' + escapeHtml(e.name) + ' ' + power + '</div>' +
+        '<div class="log-time">' + escapeHtml(e.time || '') + '</div></div>' +
+        '<div class="log-bar-wrap"><div class="log-bar" style="width:' + pct + '%;background:' + c + '"></div></div>' +
+        '<div class="log-grams" style="color:' + c + '">' + Math.round(g) + '</div></div>';
+    }).join('');
+    list.querySelectorAll('.log-row').forEach(function (row) {
+      row.addEventListener('click', function () { openEdit(row.dataset.id); });
+    });
+  }
+
+  function hasDetails(e) {
+    return e.kcal != null || e.carbs_g != null || e.fat_g != null || e.fiber_g != null;
+  }
+
+  function buildBackHtml(e) {
+    const g = Number(e.protein_g) || 0;
+    const est = e.estimates ? '<p class="back-sub">~ estimates</p>' : '';
+    let body = '<h3 class="back-title">' + escapeHtml(e.name) + '</h3>' + est;
+
+    if (!hasDetails(e)) {
+      body += '<div class="stat-grid"><div class="stat-tile"><div class="v">' + Math.round(g) + 'g</div><div class="l">Protein</div></div></div>';
+      body += '<p class="back-empty">Add details to see more</p>';
+      return body;
+    }
+
+    const kcal = e.kcal != null ? Math.round(e.kcal) : '—';
+    const carbs = e.carbs_g != null ? Number(e.carbs_g) : 0;
+    const fat = e.fat_g != null ? Number(e.fat_g) : 0;
+    const fiber = e.fiber_g != null ? Number(e.fiber_g) : null;
+    const pKcal = g * 4, cKcal = carbs * 4, fKcal = fat * 9;
+    const sum = pKcal + cKcal + fKcal || 1;
+    const pPct = Math.round((pKcal / sum) * 100);
+    const cPct = Math.round((cKcal / sum) * 100);
+    const fPct = Math.max(0, 100 - pPct - cPct);
+
+    body += '<div class="stat-grid">';
+    body += '<div class="stat-tile"><div class="v">' + kcal + '</div><div class="l">kcal</div></div>';
+    body += '<div class="stat-tile"><div class="v">' + Math.round(g) + 'g</div><div class="l">Protein</div></div>';
+    body += '</div>';
+    body += '<div class="stat-grid" style="grid-template-columns:1fr 1fr 1fr">';
+    body += '<div class="stat-tile"><div class="v">' + (e.carbs_g != null ? Math.round(carbs) + 'g' : '—') + '</div><div class="l">Carbs</div></div>';
+    body += '<div class="stat-tile"><div class="v">' + (e.fat_g != null ? Math.round(fat) + 'g' : '—') + '</div><div class="l">Fat</div></div>';
+    body += '<div class="stat-tile"><div class="v">' + (fiber != null ? Math.round(fiber) + 'g' : '—') + '</div><div class="l">Fiber</div></div>';
+    body += '</div>';
+
+    body += '<div class="macro-bar">';
+    body += '<span style="width:' + pPct + '%;background:' + COLORS.green + '"></span>';
+    body += '<span style="width:' + cPct + '%;background:' + COLORS.amber + '"></span>';
+    body += '<span style="width:' + fPct + '%;background:' + COLORS.red + '"></span>';
+    body += '</div>';
+    body += '<div class="macro-legend"><span><i style="background:' + COLORS.green + '"></i>P ' + pPct + '%</span>';
+    body += '<span><i style="background:' + COLORS.amber + '"></i>C ' + cPct + '%</span>';
+    body += '<span><i style="background:' + COLORS.red + '"></i>F ' + fPct + '%</span></div>';
+
+    (e.insights || []).slice(0, 2).forEach(function (line) {
+      body += '<div class="insight">' + escapeHtml(line) + '</div>';
+    });
+    return body;
+  }
+
+  function renderPhotos() {
+    const card = document.getElementById('photosCard');
+    const grid = document.getElementById('photoGrid');
+    const entries = entriesFor(viewDate);
+
+    // Resolve photos for all entries, then show those that have one
+    Promise.all(entries.map(function (e) {
+      return resolvePhoto(e).then(function (url) { return { e: e, url: url }; });
+    })).then(function (rows) {
+      const withPhoto = rows.filter(function (r) { return !!r.url; });
+      if (!withPhoto.length) {
+        card.style.display = 'none';
+        grid.innerHTML = '';
+        return;
+      }
+      card.style.display = 'block';
+      grid.innerHTML = withPhoto.map(function (r) {
+        const e = r.e;
+        const g = Number(e.protein_g) || 0;
+        const c = mealColor(g);
+        const isFlipped = !!flipped[e.id];
+        const emo = mealEmoji(e.name);
+        return '<div class="flip-scene" data-id="' + escapeHtml(e.id) + '" role="button" aria-label="Flip meal card">' +
+          '<div class="flip-card' + (isFlipped ? ' flipped' : '') + '">' +
+            '<div class="flip-face flip-front">' +
+              '<img src="' + r.url + '" alt="' + escapeHtml(e.name) + '" loading="lazy">' +
+              '<div class="photo-emoji-badge" style="--emoji-ring:' + c + '">' + emo + '</div>' +
+              '<div class="flip-hint">Tap</div>' +
+              '<div class="photo-cap"><div>' + escapeHtml(e.name) + '</div>' +
+              '<div><span class="t">' + escapeHtml(e.time || '') + '</span> · <span class="g" style="color:' + c + '">' + Math.round(g) + 'g</span></div></div>' +
+            '</div>' +
+            '<div class="flip-face flip-back">' + buildBackHtml(e) + '</div>' +
+          '</div></div>';
+      }).join('');
+
+      grid.querySelectorAll('.flip-scene').forEach(function (el) {
+        el.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          const id = el.dataset.id;
+          flipped[id] = !flipped[id];
+          const cardEl = el.querySelector('.flip-card');
+          if (cardEl) cardEl.classList.toggle('flipped', !!flipped[id]);
+        });
+      });
+    });
+  }
+
+  function render() {
+    document.getElementById('dateLabel').textContent = formatDateLabel(viewDate);
+    const isToday = viewDate === todayStr();
+    document.querySelector('.gauge-kicker').textContent = isToday ? "Today's protein" : 'Day total';
+    document.querySelector('.log-title').textContent = isToday ? "Today's log" : 'Day log';
+    drawGauge(dayTotal(viewDate));
+    renderWeek();
+    renderLog();
+    renderPhotos();
+    renderStats();
+  }
+
+  /* ---------- Stats ---------- */
+  function loggedDayTotals() {
+    const map = {};
+    state.entries.forEach(function (e) {
+      if (!e.date) return;
+      map[e.date] = (map[e.date] || 0) + (Number(e.protein_g) || 0);
+    });
+    return Object.keys(map).sort().map(function (d) {
+      return { date: d, total: map[d] };
+    });
+  }
+  function filterPeriod(days) {
+    const period = settings.statsPeriod || '30d';
+    if (period === 'all') return days;
+    const n = period === '7d' ? 7 : 30;
+    const cutoff = addDays(todayStr(), -(n - 1));
+    return days.filter(function (d) { return d.date >= cutoff; });
+  }
+  function linearRegression(ys) {
+    const n = ys.length;
+    if (n < 2) return null;
+    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    for (let i = 0; i < n; i++) {
+      sumX += i; sumY += ys[i]; sumXY += i * ys[i]; sumXX += i * i;
+    }
+    const den = n * sumXX - sumX * sumX;
+    if (!den) return null;
+    const slope = (n * sumXY - sumX * sumY) / den;
+    const intercept = (sumY - slope * sumX) / n;
+    return { slope: slope, intercept: intercept };
+  }
+  function renderStats() {
+    const all = loggedDayTotals();
+    const days = filterPeriod(all);
+    const goal = getTarget();
+    const hit = days.filter(function (d) { return d.total >= goal; }).length;
+    const miss = days.length - hit;
+    const avg = days.length ? days.reduce(function (s, d) { return s + d.total; }, 0) / days.length : 0;
+    const pct = days.length ? Math.round((hit / days.length) * 100) : 0;
+
+    document.getElementById('statHit').textContent = days.length ? (hit + ' / ' + miss) : '—';
+    document.getElementById('statHitSub').textContent = days.length ? (hit + ' hit · ' + miss + ' miss') : 'start logging to track';
+    document.getElementById('statPct').textContent = days.length ? (pct + '%') : '—';
+    document.getElementById('statPctSub').textContent = 'of logged days';
+    document.getElementById('statAvg').textContent = days.length ? (Math.round(avg) + 'g') : '—';
+    document.getElementById('statAvgSub').textContent = 'over ' + days.length + ' logged day' + (days.length === 1 ? '' : 's');
+
+    document.querySelectorAll('#periodTog button').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.period === settings.statsPeriod);
+    });
+
+    const periodLabel = settings.statsPeriod === '7d' ? 'Last 7 days' : (settings.statsPeriod === '30d' ? 'Last 30 days' : 'All time');
+    document.getElementById('statsCaption').textContent = days.length
+      ? (periodLabel + ' · Only days with at least one entry count as logged days. Target ' + goal + 'g.')
+      : ('Target ' + goal + 'g · Stats appear after your first logged day.');
+
+    drawStatsChart(days, goal);
+  }
+  function drawStatsChart(days, goal) {
+    const svg = document.getElementById('statsChart');
+    const W = 360, H = 160, padL = 28, padR = 10, padT = 14, padB = 28;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    if (!days.length) {
+      svg.innerHTML = '<text x="' + (W / 2) + '" y="' + (H / 2 - 8) + '" text-anchor="middle" fill="#8E8E93" font-size="13" font-weight="600" font-family="Inter,sans-serif">Your trend will show up here</text>' +'<text x="' + (W / 2) + '" y="' + (H / 2 + 12) + '" text-anchor="middle" fill="#AEAEB2" font-size="11" font-family="Inter,sans-serif">Add a few days of meals</text>';
+      return;
+    }
+    const totals = days.map(function (d) { return d.total; });
+    const maxY = Math.max(goal * 1.15, Math.max.apply(null, totals) * 1.1, 50);
+    function xAt(i) {
+      if (days.length === 1) return padL + plotW / 2;
+      return padL + (i / (days.length - 1)) * plotW;
+    }
+    function yAt(v) {
+      return padT + plotH - (Math.max(0, v) / maxY) * plotH;
+    }
+    let html = '';
+    // target dashed line
+    const yGoal = yAt(goal);
+    html += '<line x1="' + padL + '" y1="' + yGoal + '" x2="' + (W - padR) + '" y2="' + yGoal + '" stroke="#8E8E93" stroke-width="1.5" stroke-dasharray="4 4"/>';
+    html += '<text x="' + (W - padR) + '" y="' + (yGoal - 4) + '" text-anchor="end" fill="#8E8E93" font-size="9" font-weight="600" font-family="Inter,sans-serif">' + goal + 'g</text>';
+
+    // bars
+    const barW = Math.max(3, Math.min(18, plotW / days.length - 2));
+    days.forEach(function (d, i) {
+      const x = xAt(i) - barW / 2;
+      const y = yAt(d.total);
+      const h = Math.max(1, padT + plotH - y);
+      const c = dayColor(d.total) || COLORS.red;
+      html += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + h + '" rx="2" fill="' + c + '" opacity="0.85"/>';
+    });
+
+    // trendline
+    const reg = linearRegression(totals);
+    if (reg) {
+      const y0 = yAt(reg.intercept);
+      const y1 = yAt(reg.intercept + reg.slope * (days.length - 1));
+      html += '<line x1="' + xAt(0) + '" y1="' + y0 + '" x2="' + xAt(days.length - 1) + '" y2="' + y1 + '" stroke="#1C1C1E" stroke-width="2" stroke-linecap="round"/>';
+    }
+
+    // x labels: first, mid, last
+    function xLabel(i) {
+      const d = parseYmd(days[i].date);
+      return (d.getMonth() + 1) + '/' + d.getDate();
+    }
+    const labelIdx = [0];
+    if (days.length > 2) labelIdx.push(Math.floor((days.length - 1) / 2));
+    if (days.length > 1) labelIdx.push(days.length - 1);
+    labelIdx.forEach(function (i) {
+      html += '<text x="' + xAt(i) + '" y="' + (H - 8) + '" text-anchor="middle" fill="#8E8E93" font-size="9" font-weight="600" font-family="Inter,sans-serif">' + xLabel(i) + '</text>';
+    });
+    svg.innerHTML = html;
+  }
+
+  /* ---------- EXIF DateTimeOriginal (pure JS) ---------- */
+  function readExifDate(file) {
+    return new Promise(function (resolve) {
+      function fromLastModified() {
+        if (file && file.lastModified) {
+          const d = new Date(file.lastModified);
+          if (!isNaN(d.getTime())) return d;
+        }
+        return null;
+      }
+      if (!file || typeof file.arrayBuffer !== 'function') {
+        resolve(fromLastModified());
+        return;
+      }
+      // HEIC / non-JPEG: skip EXIF parse, fall back
+      const type = (file.type || '').toLowerCase();
+      const name = (file.name || '').toLowerCase();
+      const looksJpeg = type.indexOf('jpeg') >= 0 || type.indexOf('jpg') >= 0 || /\.jpe?g$/.test(name) || type === '' || type === 'image/*';
+      if (!looksJpeg && (type.indexOf('heic') >= 0 || type.indexOf('heif') >= 0 || /\.heic$/.test(name) || /\.heif$/.test(name))) {
+        resolve(fromLastModified());
+        return;
+      }
+      file.arrayBuffer().then(function (buf) {
+        try {
+          const view = new DataView(buf);
+          if (view.byteLength < 4 || view.getUint16(0) !== 0xFFD8) {
+            resolve(fromLastModified());
+            return;
+          }
+          let offset = 2;
+          while (offset + 4 < view.byteLength) {
+            if (view.getUint8(offset) !== 0xFF) break;
+            const marker = view.getUint8(offset + 1);
+            const size = view.getUint16(offset + 2);
+            if (marker === 0xE1) {
+              // APP1
+              const start = offset + 4;
+              if (start + 6 > view.byteLength) break;
+              // "Exif\0\0"
+              if (view.getUint32(start) !== 0x45786966 || view.getUint16(start + 4) !== 0) {
+                offset += 2 + size;
+                continue;
+              }
+              const tiff = start + 6;
+              const le = view.getUint16(tiff) === 0x4949;
+              function u16(o) { return le ? view.getUint16(o, true) : view.getUint16(o, false); }
+              function u32(o) { return le ? view.getUint32(o, true) : view.getUint32(o, false); }
+              const ifd0 = tiff + u32(tiff + 4);
+              function readIFD(ifdOff) {
+                if (ifdOff + 2 > view.byteLength) return {};
+                const n = u16(ifdOff);
+                const tags = {};
+                for (let i = 0; i < n; i++) {
+                  const e = ifdOff + 2 + i * 12;
+                  if (e + 12 > view.byteLength) break;
+                  const tag = u16(e);
+                  const typ = u16(e + 2);
+                  const cnt = u32(e + 4);
+                  const valOff = e + 8;
+                  let valuePos = valOff;
+                  const typeSize = ({ 1:1, 2:1, 3:2, 4:4, 5:8 })[typ] || 1;
+                  if (cnt * typeSize > 4) valuePos = tiff + u32(valOff);
+                  tags[tag] = { typ: typ, cnt: cnt, pos: valuePos };
+                }
+                return tags;
+              }
+              function readAscii(tagInfo) {
+                if (!tagInfo) return null;
+                let s = '';
+                for (let i = 0; i < tagInfo.cnt; i++) {
+                  if (tagInfo.pos + i >= view.byteLength) break;
+                  const c = view.getUint8(tagInfo.pos + i);
+                  if (c === 0) break;
+                  s += String.fromCharCode(c);
+                }
+                return s;
+              }
+              const ifd0tags = readIFD(ifd0);
+              // ExifIFD pointer tag 0x8769
+              let exifTags = {};
+              if (ifd0tags[0x8769]) {
+                const exifOff = tiff + u32(ifd0tags[0x8769].pos);
+                exifTags = readIFD(exifOff);
+              }
+              const dto = readAscii(exifTags[0x9003]) || readAscii(ifd0tags[0x0132]); // DateTimeOriginal or DateTime
+              if (dto) {
+                // "YYYY:MM:DD HH:MM:SS"
+                const m = dto.match(/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+                if (m) {
+                  const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+                  if (!isNaN(d.getTime())) { resolve(d); return; }
+                }
+              }
+              resolve(fromLastModified());
+              return;
+            }
+            if (marker === 0xDA) break; // SOS
+            offset += 2 + size;
+          }
+          resolve(fromLastModified());
+        } catch (e) {
+          resolve(fromLastModified());
+        }
+      }).catch(function () { resolve(fromLastModified()); });
+    });
+  }
+  function applyCapturedDate(d, sourceLabel) {
+    if (!d || isNaN(d.getTime())) return;
+    document.getElementById('fDate').value = ymd(d);
+    document.getElementById('fTime').value =
+      String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    const hint = document.getElementById('exifHint');
+    hint.textContent = 'Date from ' + (sourceLabel || 'photo') + ' — you can edit it';
+    hint.classList.add('show');
+  }
+
+  function setManualOpen(open) {
+    const tog = document.getElementById('manualToggle');
+    const fields = document.getElementById('manualFields');
+    tog.classList.toggle('open', !!open);
+    tog.setAttribute('aria-expanded', open ? 'true' : 'false');
+    fields.classList.toggle('open', !!open);
+  }
+
+  function setEstUI(est, opts) {
+    opts = opts || {};
+    currentEst = est;
+    const protein = Math.max(0, Math.round(Number(est.protein) || 0));
+    document.getElementById('estValue').textContent = protein;
+    document.getElementById('fGrams').value = protein;
+    const label = document.getElementById('estLabel');
+    if (est.rough) {
+      label.textContent = 'Rough guess';
+      label.classList.add('guess');
+    } else {
+      label.textContent = 'Estimated protein';
+      label.classList.remove('guess');
+    }
+    const macros = document.getElementById('estMacros');
+    const parts = [];
+    if (est.kcal != null) parts.push('<span>' + Math.round(est.kcal) + ' kcal</span>');
+    if (est.carbs != null) parts.push('<span>C ' + Math.round(est.carbs) + 'g</span>');
+    if (est.fat != null) parts.push('<span>F ' + (Math.round(est.fat * 10) / 10) + 'g</span>');
+    if (est.fiber != null) parts.push('<span>Fi ' + (Math.round(est.fiber * 10) / 10) + 'g</span>');
+    macros.innerHTML = parts.join('');
+    document.getElementById('estMatch').textContent = est.note || (est.matches && est.matches.join(' · ')) || '';
+    if (!opts.skipMacrosFill) {
+      document.getElementById('fKcal').value = est.kcal != null ? Math.round(est.kcal) : '';
+      document.getElementById('fCarbs').value = est.carbs != null ? Math.round(est.carbs) : '';
+      document.getElementById('fFat').value = est.fat != null ? (Math.round(est.fat * 10) / 10) : '';
+      document.getElementById('fFiber').value = est.fiber != null ? (Math.round(est.fiber * 10) / 10) : '';
+    }
+  }
+  function refreshEstimateFromForm() {
+    const name = document.getElementById('fName').value;
+    const hasPhoto = !!(pendingPhoto || (document.getElementById('photoPreview').classList.contains('show')));
+    const est = estimateFromDescription(name, hasPhoto);
+    setEstUI(est);
+    estManualOverride = false;
+  }
+  function nudgeEst(delta) {
+    const cur = parseInt(document.getElementById('estValue').textContent, 10) || 0;
+    const next = Math.max(0, Math.min(500, cur + delta));
+    estManualOverride = true;
+    document.getElementById('estValue').textContent = next;
+    document.getElementById('fGrams').value = next;
+    if (currentEst) currentEst.protein = next;
+    document.getElementById('estLabel').textContent = 'Your amount';
+    document.getElementById('estLabel').classList.remove('guess');
+  }
+
+  function openSheet() {
+    document.getElementById('overlay').classList.add('open');
+    document.getElementById('sheet').classList.add('open');
+    targetSheetOpen = false;
+  }
+  function closeSheet() {
+    document.getElementById('overlay').classList.remove('open');
+    document.getElementById('sheet').classList.remove('open');
+    document.getElementById('targetSheet').classList.remove('open');
+    targetSheetOpen = false;
+    editingId = null;
+    pendingPhoto = null;
+    document.getElementById('editExtra').style.display = 'none';
+    document.getElementById('photoPreview').classList.remove('show');
+    document.getElementById('photoPreview').removeAttribute('src');
+    document.getElementById('exifHint').textContent = '';
+    document.getElementById('exifHint').classList.remove('show');
+    setManualOpen(false);
+    estManualOverride = false;
+    currentEst = null;
+  }
+  function openTargetSheet() {
+    menu.classList.remove('open');
+    document.getElementById('fTarget').value = getTarget();
+    updateTargetBandsHint(getTarget());
+    document.getElementById('overlay').classList.add('open');
+    document.getElementById('sheet').classList.remove('open');
+    document.getElementById('targetSheet').classList.add('open');
+    targetSheetOpen = true;
+  }
+  function updateTargetBandsHint(t) {
+    t = clampTarget(t);
+    document.getElementById('targetBandsHint').textContent =
+      'Amber from ' + amberStart(t) + 'g · Green from ' + greenStart(t) + 'g · Gauge to ' + gaugeMaxFor(t) + 'g';
+  }
+  function numOrNull(id) {
+    const v = document.getElementById(id).value;
+    if (v === '' || v == null) return null;
+    const n = parseFloat(v);
+    return isNaN(n) ? null : n;
+  }
+
+  function openAdd() {
+    editingId = null;
+    pendingPhoto = null;
+    estManualOverride = false;
+    document.getElementById('sheetTitle').textContent = 'Add meal';
+    document.getElementById('saveBtn').textContent = 'Accept';
+    ['fName','fGrams','fKcal','fCarbs','fFat','fFiber'].forEach(function (id) { document.getElementById(id).value = ''; });
+    document.getElementById('fDate').value = viewDate;
+    document.getElementById('fTime').value = nowTime();
+    document.getElementById('editExtra').style.display = 'none';
+    document.getElementById('photoPreview').classList.remove('show');
+    document.getElementById('photoPreview').removeAttribute('src');
+    document.getElementById('pickPhoto').textContent = 'Choose photo';
+    document.getElementById('exifHint').textContent = '';
+    document.getElementById('exifHint').classList.remove('show');
+    setManualOpen(false);
+    openSheet();
+    refreshEstimateFromForm();
+    setTimeout(function () { document.getElementById('fName').focus(); }, 280);
+  }
+
+  function openEdit(id) {
+    const e = state.entries.find(function (x) { return x.id === id; });
+    if (!e) return;
+    editingId = id;
+    pendingPhoto = null;
+    estManualOverride = true;
+    document.getElementById('sheetTitle').textContent = 'Edit meal';
+    document.getElementById('saveBtn').textContent = 'Save';
+    document.getElementById('fName').value = e.name || '';
+    document.getElementById('fGrams').value = e.protein_g;
+    document.getElementById('fDate').value = e.date || viewDate;
+    document.getElementById('fTime').value = e.time || nowTime();
+    document.getElementById('fKcal').value = e.kcal != null ? e.kcal : '';
+    document.getElementById('fCarbs').value = e.carbs_g != null ? e.carbs_g : '';
+    document.getElementById('fFat').value = e.fat_g != null ? e.fat_g : '';
+    document.getElementById('fFiber').value = e.fiber_g != null ? e.fiber_g : '';
+    const hasManual = e.kcal != null || e.carbs_g != null || e.fat_g != null || e.fiber_g != null;
+    setManualOpen(!!hasManual);
+    document.getElementById('editExtra').style.display = 'flex';
+    document.getElementById('exifHint').textContent = '';
+    document.getElementById('exifHint').classList.remove('show');
+    setEstUI({
+      protein: e.protein_g,
+      kcal: e.kcal,
+      carbs: e.carbs_g,
+      fat: e.fat_g,
+      fiber: e.fiber_g,
+      rough: !!e.estimates,
+      matches: [],
+      note: e.estimates ? 'Saved estimate' : 'Saved entry',
+      label: e.estimates ? 'estimate' : 'saved'
+    }, { skipMacrosFill: true });
+    const prev = document.getElementById('photoPreview');
+    resolvePhoto(e).then(function (url) {
+      if (url) { prev.src = url; prev.classList.add('show'); document.getElementById('pickPhoto').textContent = 'Change photo'; }
+      else { prev.classList.remove('show'); prev.removeAttribute('src'); document.getElementById('pickPhoto').textContent = 'Choose photo'; }
+    });
+    openSheet();
+  }
+
+  function saveEntry() {
+    let name = document.getElementById('fName').value.trim();
+    // Sync grams from big stepper
+    const stepperVal = parseInt(document.getElementById('estValue').textContent, 10);
+    if (!isNaN(stepperVal)) document.getElementById('fGrams').value = stepperVal;
+    const grams = parseFloat(document.getElementById('fGrams').value);
+    const date = document.getElementById('fDate').value || viewDate;
+    const time = document.getElementById('fTime').value || nowTime();
+    const hasPhoto = !!(pendingPhoto || (editingId && photoCache[editingId]));
+    if ((!name && !hasPhoto) || isNaN(grams) || grams < 0) {
+      alert('Add a photo or description, and confirm protein grams.');
+      return;
+    }
+    if (!name) name = 'Meal';
+    const macros = {
+      kcal: numOrNull('fKcal'),
+      carbs_g: numOrNull('fCarbs'),
+      fat_g: numOrNull('fFat'),
+      fiber_g: numOrNull('fFiber')
+    };
+    const isEstimate = !!(currentEst && (currentEst.rough || currentEst.matches));
+
+    function finish(id) {
+      if (pendingPhoto) {
+        photoCache[id] = pendingPhoto;
+        idbSet(id, pendingPhoto);
+      }
+      persistMeta();
+      viewDate = date;
+      flipped = {};
+      closeSheet();
+      render();
+    }
+
+    if (editingId) {
+      const idx = state.entries.findIndex(function (x) { return x.id === editingId; });
+      if (idx >= 0) {
+        state.entries[idx] = Object.assign({}, state.entries[idx], {
+          name: name, protein_g: grams, date: date, time: time, estimates: isEstimate
+        }, macros);
+        finish(editingId);
+      }
+    } else {
+      const id = uid();
+      state.entries.push(Object.assign({
+        id: id, date: date, time: time, name: name, protein_g: grams, insights: [], estimates: isEstimate
+      }, macros));
+      finish(id);
+    }
+  }
+
+  function deleteEntry() {
+    if (!editingId) return;
+    if (!confirm('Delete this meal?')) return;
+    const id = editingId;
+    state.entries = state.entries.filter(function (x) { return x.id !== id; });
+    delete photoCache[id];
+    delete flipped[id];
+    if (!SEED_PHOTOS[id]) idbDel(id);
+    persistMeta();
+    closeSheet();
+    render();
+  }
+
+  function compressImage(file) {
+    return new Promise(function (resolve, reject) {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = function () {
+        const img = new Image();
+        img.onload = function () {
+          const max = 600;
+          let w = img.width, h = img.height;
+          const scale = Math.min(1, max / Math.max(w, h));
+          w = Math.round(w * scale); h = Math.round(h * scale);
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        };
+        img.onerror = reject;
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  document.getElementById('addBtn').addEventListener('click', openAdd);
+  document.getElementById('cancelBtn').addEventListener('click', closeSheet);
+  document.getElementById('overlay').addEventListener('click', closeSheet);
+  document.getElementById('saveBtn').addEventListener('click', saveEntry);
+  document.getElementById('deleteBtn').addEventListener('click', deleteEntry);
+  document.getElementById('prevDay').addEventListener('click', function () { viewDate = addDays(viewDate, -1); flipped = {}; render(); });
+  document.getElementById('nextDay').addEventListener('click', function () { viewDate = addDays(viewDate, 1); flipped = {}; render(); });
+
+  const menuBtn = document.getElementById('menuBtn');
+  const menu = document.getElementById('menu');
+  menuBtn.addEventListener('click', function (e) { e.stopPropagation(); menu.classList.toggle('open'); });
+  document.addEventListener('click', function () { menu.classList.remove('open'); });
+  menu.addEventListener('click', function (e) { e.stopPropagation(); });
+
+  document.getElementById('targetBtn').addEventListener('click', function () {
+    closeGoalPop();
+    openTargetSheet();
+  });
+  document.getElementById('goalPopMinus').addEventListener('click', function () {
+    applyTarget(getTarget() - 5, { animateMax: true });
+  });
+  document.getElementById('goalPopPlus').addEventListener('click', function () {
+    applyTarget(getTarget() + 5, { animateMax: true });
+  });
+  document.getElementById('goalPopDone').addEventListener('click', function () {
+    closeGoalPop();
+    render();
+  });
+  document.addEventListener('click', function (e) {
+    if (!goalPopOpen) return;
+    const pop = document.getElementById('goalPop');
+    if (pop && !pop.contains(e.target) && !(e.target.closest && e.target.closest('#goalKnob, #goalLabel, #goalLabelHit'))) {
+      closeGoalPop();
+    }
+  });
+  document.getElementById('targetCancel').addEventListener('click', closeSheet);
+  document.getElementById('targetMinus').addEventListener('click', function () {
+    const v = clampTarget((parseInt(document.getElementById('fTarget').value, 10) || getTarget()) - 5);
+    document.getElementById('fTarget').value = v;
+    updateTargetBandsHint(v);
+  });
+  document.getElementById('targetPlus').addEventListener('click', function () {
+    const v = clampTarget((parseInt(document.getElementById('fTarget').value, 10) || getTarget()) + 5);
+    document.getElementById('fTarget').value = v;
+    updateTargetBandsHint(v);
+  });
+  document.getElementById('fTarget').addEventListener('input', function () {
+    updateTargetBandsHint(document.getElementById('fTarget').value);
+  });
+  document.getElementById('targetSave').addEventListener('click', function () {
+    const prevMax = gaugeMax();
+    settings.target = clampTarget(document.getElementById('fTarget').value);
+    persistSettings();
+    closeSheet();
+    closeGoalPop();
+    const newMax = gaugeMax();
+    animateGaugeMax(prevMax, newMax, function () { render(); });
+    renderWeek();
+    renderStats();
+  });
+
+  document.getElementById('manualToggle').addEventListener('click', function () {
+    setManualOpen(!document.getElementById('manualFields').classList.contains('open'));
+  });
+
+  let estTimer = null;
+  document.getElementById('fName').addEventListener('input', function () {
+    clearTimeout(estTimer);
+    estTimer = setTimeout(function () {
+      // Always re-estimate from description while typing; stepper override clears
+      estManualOverride = false;
+      refreshEstimateFromForm();
+    }, 120);
+  });
+  // Tap ±5g; long-press switches to ±1g repeats
+  (function () {
+    let t = null, rep = null, started = false;
+    function start(delta) {
+      if (started) return;
+      started = true;
+      nudgeEst(delta);
+      t = setTimeout(function () {
+        rep = setInterval(function () { nudgeEst(delta > 0 ? 1 : -1); }, 60);
+      }, 400);
+    }
+    function stop() {
+      started = false;
+      clearTimeout(t); clearInterval(rep); t = null; rep = null;
+    }
+    ['estMinus', 'estPlus'].forEach(function (id) {
+      const el = document.getElementById(id);
+      const delta = id === 'estPlus' ? 5 : -5;
+      el.addEventListener('pointerdown', function (e) { e.preventDefault(); start(delta); });
+      el.addEventListener('pointerup', stop);
+      el.addEventListener('pointerleave', stop);
+      el.addEventListener('pointercancel', stop);
+    });
+  })();
+
+  document.getElementById('periodTog').addEventListener('click', function (e) {
+    const btn = e.target.closest('button[data-period]');
+    if (!btn) return;
+    settings.statsPeriod = btn.dataset.period;
+    persistSettings();
+    renderStats();
+  });
+
+  document.getElementById('exportBtn').addEventListener('click', function () {
+    menu.classList.remove('open');
+    const blob = new Blob([JSON.stringify({ schema: SCHEMA, goal: getTarget(), entries: state.entries.map(stripPhoto) }, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'protein-tracker-' + todayStr() + '.json';
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  });
+  document.getElementById('importBtn').addEventListener('click', function () {
+    menu.classList.remove('open');
+    document.getElementById('importInput').click();
+  });
+  document.getElementById('importInput').addEventListener('change', function (ev) {
+    const file = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if (!file) return;
+    file.text().then(function (text) {
+      const data = JSON.parse(text);
+      if (!data || !Array.isArray(data.entries)) throw new Error('bad');
+      if (!confirm('Replace all data with this import?')) return;
+      state = { schema: SCHEMA, goal: (data.goal != null ? data.goal : getTarget()), entries: mergeSeedInto(data.entries.map(stripPhoto)) };
+      if (data.goal != null) { settings.target = clampTarget(data.goal); persistSettings(); }
+      persistMeta();
+      render();
+    }).catch(function () { alert('Could not import that JSON file.'); });
+  });
+  document.getElementById('clearDayBtn').addEventListener('click', function () {
+    menu.classList.remove('open');
+    if (!confirm('Clear all meals on ' + formatDateLabel(viewDate) + '?')) return;
+    const removed = state.entries.filter(function (e) { return e.date === viewDate; });
+    state.entries = state.entries.filter(function (e) { return e.date !== viewDate; });
+    removed.forEach(function (e) {
+      delete photoCache[e.id];
+      if (!SEED_PHOTOS[e.id]) idbDel(e.id);
+    });
+    persistMeta();
+    render();
+  });
+
+  document.getElementById('pickPhoto').addEventListener('click', function () {
+    document.getElementById('fileInput').click();
+  });
+  document.getElementById('fileInput').addEventListener('change', function (ev) {
+    const file = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if (!file) return;
+    // Read EXIF date in parallel with compress
+    readExifDate(file).then(function (d) {
+      if (d) {
+        const fromExif = true; // best-effort; HEIC falls back to lastModified
+        const type = (file.type || '').toLowerCase();
+        const name = (file.name || '').toLowerCase();
+        const isHeic = type.indexOf('heic') >= 0 || type.indexOf('heif') >= 0 || /\.heic$/.test(name) || /\.heif$/.test(name);
+        applyCapturedDate(d, isHeic ? 'file date' : 'photo');
+      }
+    });
+    compressImage(file).then(function (dataUrl) {
+      pendingPhoto = dataUrl;
+      const prev = document.getElementById('photoPreview');
+      prev.src = pendingPhoto;
+      prev.classList.add('show');
+      document.getElementById('pickPhoto').textContent = 'Change photo';
+      if (!editingId && !estManualOverride) refreshEstimateFromForm();
+      else if (!editingId && !document.getElementById('fName').value.trim()) refreshEstimateFromForm();
+    }).catch(function () {
+      // HEIC may fail to decode in some browsers — still keep EXIF/lastModified date if set
+      alert('Could not preview that photo (HEIC may need conversion). You can still save with a description and protein.');
+    });
+  });
+
+  // Test hook for headless verification
+  window.__proteinTest = {
+    flip: function (id) { flipped[id] = true; renderPhotos(); },
+    getPhotoCount: function () {
+      return Promise.all(entriesFor(viewDate).map(resolvePhoto)).then(function (urls) {
+        return urls.filter(Boolean).length;
+      });
+    },
+    dayTotal: function () { return dayTotal(viewDate); },
+    setTarget: function (t) { applyTarget(t, { animateMax: false }); },
+    getGaugeMax: function () { return gaugeMax(); },
+    getBands: function () { return { amber: amberStart(), green: greenStart(), max: gaugeMax(), goal: getTarget() }; },
+    getTarget: function () { return getTarget(); },
+    setPeriod: function (p) { settings.statsPeriod = p; persistSettings(); renderStats(); },
+    injectDays: function (days) {
+      days.forEach(function (d) {
+        state.entries.push({
+          id: uid(), date: d.date, time: '12:00', name: 'Test meal', protein_g: d.total, insights: []
+        });
+      });
+      render();
+    },
+    estimate: function (text, hasPhoto) { return estimateFromDescription(text, !!hasPhoto); },
+    emoji: function (name) { return mealEmoji(name); },
+    seedEmojis: function () {
+      return SEED.map(function (e) { return { name: e.name, emoji: mealEmoji(e.name) }; });
+    },
+    build: 'protein-clean-v1'
+  };
+
+  // Persist storage when supported (keeps localStorage/IDB from being evicted)
+  try {
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persist().catch(function () {});
+    }
+  } catch (e) {}
+
+  loadSettings();
+  loadMeta();
+  // Migrate: if settings were default but meta already had a custom goal, adopt it once
+  try {
+    if (!localStorage.getItem(SETTINGS_KEY) && state.goal && state.goal !== DEFAULT_TARGET) {
+      settings.target = clampTarget(state.goal);
+      persistSettings();
+    } else {
+      state.goal = getTarget();
+    }
+  } catch (e) {}
+  render();
+})();
+</script>
+</body>
+</html>
