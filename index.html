@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Protein">
 <meta name="theme-color" content="#F2F2F7">
 <title>Protein</title>
-<meta name="protein-build" content="stats-target-exif-emoji-est-v1">
+<meta name="protein-build" content="goal-drag-v1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -105,6 +105,36 @@
   }
   .gauge-hint { margin-top: 8px; font-size: 13px; color: var(--muted); }
   .band-label { font-size: 10px; font-weight: 600; fill: #8E8E93; }
+  .gauge-wrap { touch-action: none; }
+  .goal-knob-hit { cursor: grab; touch-action: none; }
+  .goal-knob-hit:active, .gauge-wrap.dragging .goal-knob-hit { cursor: grabbing; }
+  .gauge-wrap.dragging .goal-knob-dot { filter: drop-shadow(0 0 6px rgba(0,0,0,0.25)); }
+  .goal-knob-dot { transition: r 0.12s ease, stroke-width 0.12s ease; }
+  .gauge-wrap.dragging .goal-knob-dot { r: 14; }
+  .goal-label-hit { cursor: pointer; }
+  .goal-pop {
+    position: absolute; z-index: 40;
+    background: var(--card); border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.06);
+    padding: 12px 14px; min-width: 168px;
+    display: none; left: 50%; top: 8px; transform: translateX(-50%);
+  }
+  .goal-pop.open { display: block; }
+  .goal-pop-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); text-align: center; margin-bottom: 8px;
+  }
+  .goal-pop-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .goal-pop-row button {
+    width: 40px; height: 40px; border-radius: 50%; background: var(--bg);
+    font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center;
+  }
+  .goal-pop-row button:active { background: #E5E5EA; }
+  .goal-pop-val { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; min-width: 64px; text-align: center; }
+  .goal-pop-done {
+    margin-top: 10px; width: 100%; padding: 10px; border-radius: 12px;
+    background: var(--text); color: #fff; font-size: 15px; font-weight: 600;
+  }
 
   .week-title {
     font-size: 13px; font-weight: 600; color: var(--muted);
@@ -409,8 +439,17 @@
   </header>
 
   <section class="card" id="gaugeCard">
-    <div class="gauge-wrap">
+    <div class="gauge-wrap" id="gaugeWrap">
       <svg id="gaugeSvg" viewBox="0 0 320 240" aria-hidden="true"></svg>
+      <div class="goal-pop" id="goalPop" role="dialog" aria-label="Adjust daily target">
+        <div class="goal-pop-title">Daily target</div>
+        <div class="goal-pop-row">
+          <button type="button" id="goalPopMinus" aria-label="Decrease">−</button>
+          <div class="goal-pop-val" id="goalPopVal">155</div>
+          <button type="button" id="goalPopPlus" aria-label="Increase">+</button>
+        </div>
+        <button type="button" class="goal-pop-done" id="goalPopDone">Done</button>
+      </div>
       <div class="gauge-center">
         <div class="gauge-kicker">Today's protein</div>
         <p class="gauge-total" id="totalNum">0</p>
@@ -960,17 +999,35 @@
   let currentEst = null;
   let estManualOverride = false;
 
+  function roundTo5(n) {
+    return Math.round(Number(n) / 5) * 5;
+  }
   function clampTarget(n) {
-    n = Math.round(Number(n) || DEFAULT_TARGET);
+    n = roundTo5(Number(n) || DEFAULT_TARGET);
     return Math.max(50, Math.min(300, n));
   }
   function getTarget() { return clampTarget(settings.target); }
-  function amberStart() { return Math.round(getTarget() * (90 / 155)); }
-  function greenStart() { return Math.round(getTarget() * (120 / 155)); }
-  function gaugeMax() {
-    const t = getTarget();
+  function amberStart(t) {
+    t = t != null ? t : getTarget();
+    return Math.max(5, roundTo5(t * (90 / 155)));
+  }
+  function greenStart(t) {
+    t = t != null ? t : getTarget();
+    var a = amberStart(t);
+    var g = Math.max(a + 5, roundTo5(t * (120 / 155)));
+    return Math.min(g, Math.max(a + 5, t - 5));
+  }
+  function gaugeMaxFor(t) {
+    t = t != null ? t : getTarget();
     return Math.max(200, Math.ceil((t * 1.3) / 10) * 10);
   }
+  function gaugeMax() { return gaugeMaxFor(getTarget()); }
+
+  // Drag / popover state for in-gauge target editing
+  let gaugeDrag = null; // { frozenMax, pointerId, moved, startAngle }
+  let gaugeDisplayMax = null; // frozen or animating max; null = live gaugeMax()
+  let goalPopOpen = false;
+  let animMaxRaf = null;
   function loadSettings() {
     let s = null;
     try {
@@ -1225,10 +1282,89 @@
     return 'M ' + s.x + ' ' + s.y + ' A ' + r + ' ' + r + ' 0 ' + large + ' 1 ' + e.x + ' ' + e.y;
   }
 
+  function effectiveGaugeMax() {
+    return gaugeDisplayMax != null ? gaugeDisplayMax : gaugeMax();
+  }
+
+  function applyTarget(t, opts) {
+    opts = opts || {};
+    const next = clampTarget(t);
+    const prevMax = gaugeMax();
+    settings.target = next;
+    persistSettings();
+    try { document.getElementById('fTarget').value = next; } catch (e) {}
+    updateTargetBandsHint(next);
+    if (goalPopOpen) {
+      document.getElementById('goalPopVal').textContent = next;
+    }
+    if (opts.animateMax) {
+      const newMax = gaugeMaxFor(next);
+      animateGaugeMax(prevMax, newMax, function () {
+        gaugeDisplayMax = null;
+        render();
+      });
+    } else if (!opts.skipRender) {
+      gaugeDisplayMax = null;
+      render();
+    }
+  }
+
+  function animateGaugeMax(fromMax, toMax, done) {
+    if (animMaxRaf) cancelAnimationFrame(animMaxRaf);
+    if (fromMax === toMax) { if (done) done(); return; }
+    const start = performance.now();
+    const dur = 280;
+    function frame(now) {
+      const t = Math.min(1, (now - start) / dur);
+      const ease = 1 - Math.pow(1 - t, 3);
+      gaugeDisplayMax = Math.round(fromMax + (toMax - fromMax) * ease);
+      drawGauge(dayTotal(viewDate));
+      if (t < 1) animMaxRaf = requestAnimationFrame(frame);
+      else {
+        animMaxRaf = null;
+        gaugeDisplayMax = null;
+        if (done) done();
+      }
+    }
+    animMaxRaf = requestAnimationFrame(frame);
+  }
+
+  function angleFromEvent(evt, svg) {
+    const pt = svg.createSVGPoint();
+    const e = evt.touches && evt.touches[0] ? evt.touches[0] : evt;
+    pt.x = e.clientX; pt.y = e.clientY;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    const local = pt.matrixTransform(ctm.inverse());
+    const cx = 160, cy = 155;
+    let deg = Math.atan2(local.y - cy, local.x - cx) * 180 / Math.PI;
+    if (deg < 0) deg += 360;
+    return deg;
+  }
+  function angleToValue(deg, maxG) {
+    // Map along the gauge arc START..START+SWEEP (150 → 390/30)
+    let a = deg;
+    // Normalize into a continuous sweep starting at START
+    let rel = a - START;
+    if (rel < 0) rel += 360;
+    // Clamp to sweep; values outside pull to ends
+    if (rel > SWEEP + 20 && rel < 360 - 20) {
+      // far from arc — pick nearer end
+      rel = (rel < 180) ? 0 : SWEEP;
+    } else {
+      rel = Math.max(0, Math.min(SWEEP, rel));
+    }
+    const v = (rel / SWEEP) * maxG;
+    return clampTarget(v);
+  }
+
   function drawGauge(total) {
     const svg = document.getElementById('gaugeSvg');
+    const wrap = document.getElementById('gaugeWrap');
     const cx = 160, cy = 155, r = 108, stroke = 18, gap = 3;
-    const maxG = gaugeMax(), a = amberStart(), gr = greenStart(), goal = getTarget();
+    const goal = getTarget();
+    const maxG = effectiveGaugeMax();
+    const a = amberStart(goal), gr = greenStart(goal);
     const bands = [
       { from: 0, to: a, color: COLORS.red },
       { from: a, to: gr, color: COLORS.amber },
@@ -1243,19 +1379,35 @@
       html += '<path d="' + describeArc(cx, cy, r, a0, a1) + '" fill="none" stroke="' + b.color + '" stroke-width="' + stroke + '" stroke-linecap="round"/>';
     });
     function labelAt(v, text, dy) {
-      const p = polar(cx, cy, r + 28, valueToAngle(v, maxG));
+      const p = polar(cx, cy, r + 28, valueToAngle(Math.min(v, maxG), maxG));
       return '<text class="band-label" x="' + p.x + '" y="' + (p.y + (dy || 0)) + '" text-anchor="middle" dominant-baseline="middle">' + text + '</text>';
     }
     html += labelAt(0, '0', 4) + labelAt(a, String(a)) + labelAt(gr, String(gr)) + labelAt(maxG, String(maxG), 4);
-    const ga = valueToAngle(goal, maxG);
-    const gin = polar(cx, cy, r - stroke / 2 - 4, ga);
-    const gout = polar(cx, cy, r + stroke / 2 + 4, ga);
-    html += '<line x1="' + gin.x + '" y1="' + gin.y + '" x2="' + gout.x + '" y2="' + gout.y + '" stroke="#1C1C1E" stroke-width="2" stroke-linecap="round"/>';
+
+    // Goal knob — visual on arc (clamped to maxG), hit target ~44px
+    const goalVisual = Math.min(goal, maxG);
+    const ga = valueToAngle(goalVisual, maxG);
+    const gpos = polar(cx, cy, r, ga);
     const gl = polar(cx, cy, r + 42, ga);
-    html += '<text class="band-label" x="' + gl.x + '" y="' + gl.y + '" text-anchor="middle" dominant-baseline="middle" style="fill:#1C1C1E;font-weight:700">Goal ' + goal + '</text>';
-    const mp = polar(cx, cy, r, valueToAngle(total, maxG));
+    const dragging = !!(gaugeDrag && gaugeDrag.moved);
+    const knobR = dragging ? 14 : 11;
+    html += '<g class="goal-knob-hit" id="goalKnob" role="slider" aria-valuemin="50" aria-valuemax="300" aria-valuenow="' + goal + '" aria-label="Daily protein goal">' +
+      '<circle class="goal-knob-hit-area" cx="' + gpos.x + '" cy="' + gpos.y + '" r="22" fill="transparent" stroke="none"/>' +
+      '<circle class="goal-knob-dot" cx="' + gpos.x + '" cy="' + gpos.y + '" r="' + knobR + '" fill="#1C1C1E" stroke="#fff" stroke-width="3"/>' +
+      '<line x1="' + polar(cx, cy, r - stroke / 2 - 2, ga).x + '" y1="' + polar(cx, cy, r - stroke / 2 - 2, ga).y +
+        '" x2="' + polar(cx, cy, r + stroke / 2 + 2, ga).x + '" y2="' + polar(cx, cy, r + stroke / 2 + 2, ga).y +
+        '" stroke="#1C1C1E" stroke-width="2" stroke-linecap="round" pointer-events="none"/>' +
+      '</g>';
+    html += '<text class="band-label goal-label-hit" id="goalLabel" x="' + gl.x + '" y="' + gl.y +
+      '" text-anchor="middle" dominant-baseline="middle" style="fill:#1C1C1E;font-weight:700;font-size:11px">Goal ' + goal + '</text>';
+
+    // Day total needle (under knob visually if overlapping — draw before knob? already drew knob; needle on top of bands is fine)
+    const mp = polar(cx, cy, r, valueToAngle(Math.min(total, maxG), maxG));
     const mc = dayColor(total) || COLORS.red;
-    html += '<circle cx="' + mp.x + '" cy="' + mp.y + '" r="11" fill="#fff" stroke="' + mc + '" stroke-width="4"><animate attributeName="r" from="0" to="11" dur="0.45s" fill="freeze"/></circle>';
+    // Insert needle before knob by rebuilding order: actually redraw needle under by putting it earlier.
+    // For simplicity leave knob on top so it's always grabable.
+    html += '<circle id="dayNeedle" cx="' + mp.x + '" cy="' + mp.y + '" r="9" fill="#fff" stroke="' + mc + '" stroke-width="4" pointer-events="none"></circle>';
+
     svg.innerHTML = html;
     document.getElementById('totalNum').textContent = Math.round(total);
     const st = statusInfo(total);
@@ -1263,9 +1415,111 @@
     pill.textContent = st.label;
     pill.style.background = st.color;
     document.getElementById('gaugeHint').textContent = hintText(total);
+    bindGoalKnob();
   }
 
-  function mondayOf(dateStr) {
+  let goalKnobBound = false;
+  function bindGoalKnob() {
+    if (goalKnobBound) return;
+    goalKnobBound = true;
+    const svg = document.getElementById('gaugeSvg');
+    const wrap = document.getElementById('gaugeWrap');
+
+    function targetEl(id) { return document.getElementById(id); }
+
+    function onDown(evt) {
+      const knob = targetEl('goalKnob');
+      if (!knob || !knob.contains(evt.target) && evt.target.id !== 'goalKnob' && !(evt.target.closest && evt.target.closest('#goalKnob'))) {
+        // allow events delegated from svg
+      }
+      const isKnob = evt.target.closest && evt.target.closest('#goalKnob');
+      const isLabel = evt.target.id === 'goalLabel' || (evt.target.closest && evt.target.closest('#goalLabel'));
+      if (isLabel) {
+        evt.preventDefault();
+        evt.stopPropagation();
+        openGoalPop();
+        return;
+      }
+      if (!isKnob) return;
+      evt.preventDefault();
+      evt.stopPropagation();
+      closeGoalPop();
+      const pid = evt.pointerId != null ? evt.pointerId : 1;
+      try { svg.setPointerCapture(pid); } catch (e) {}
+      gaugeDrag = {
+        frozenMax: gaugeMax(),
+        pointerId: pid,
+        moved: false,
+        startX: evt.clientX,
+        startY: evt.clientY
+      };
+      gaugeDisplayMax = gaugeDrag.frozenMax;
+      wrap.classList.add('dragging');
+    }
+    function onMove(evt) {
+      if (!gaugeDrag) return;
+      if (gaugeDrag.pointerId != null && evt.pointerId != null && evt.pointerId !== gaugeDrag.pointerId) return;
+      const dx = evt.clientX - gaugeDrag.startX, dy = evt.clientY - gaugeDrag.startY;
+      if (!gaugeDrag.moved && (dx * dx + dy * dy) < 25) return;
+      gaugeDrag.moved = true;
+      evt.preventDefault();
+      const deg = angleFromEvent(evt, svg);
+      if (deg == null) return;
+      let goal = angleToValue(deg, gaugeDrag.frozenMax);
+      let rel = deg - START; if (rel < 0) rel += 360;
+      if (rel >= SWEEP - 1) {
+        const over = Math.min(40, Math.max(0, rel - SWEEP));
+        goal = clampTarget(gaugeDrag.frozenMax + (300 - gaugeDrag.frozenMax) * (over / 40));
+      }
+      if (goal !== settings.target) {
+        settings.target = goal;
+        state.goal = goal;
+        drawGauge(dayTotal(viewDate));
+        document.getElementById('gaugeHint').textContent = 'Goal ' + goal + 'g';
+      }
+    }
+    function onUp(evt) {
+      if (!gaugeDrag) return;
+      if (gaugeDrag.pointerId != null && evt.pointerId != null && evt.pointerId !== gaugeDrag.pointerId) return;
+      const wasDrag = gaugeDrag.moved;
+      const frozen = gaugeDrag.frozenMax;
+      gaugeDrag = null;
+      wrap.classList.remove('dragging');
+      try { svg.releasePointerCapture(evt.pointerId); } catch (e) {}
+      if (!wasDrag) {
+        gaugeDisplayMax = null;
+        openGoalPop();
+        return;
+      }
+      const finalGoal = getTarget();
+      persistSettings();
+      try { document.getElementById('fTarget').value = finalGoal; } catch (e) {}
+      updateTargetBandsHint(finalGoal);
+      const newMax = gaugeMaxFor(finalGoal);
+      animateGaugeMax(frozen, newMax, function () { render(); });
+      renderWeek();
+      renderStats();
+    }
+
+    svg.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }
+
+    function openGoalPop() {
+    goalPopOpen = true;
+    const pop = document.getElementById('goalPop');
+    document.getElementById('goalPopVal').textContent = getTarget();
+    pop.classList.add('open');
+  }
+  function closeGoalPop() {
+    goalPopOpen = false;
+    const pop = document.getElementById('goalPop');
+    if (pop) pop.classList.remove('open');
+  }
+
+    function mondayOf(dateStr) {
     const d = parseYmd(dateStr);
     const day = d.getDay();
     d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
@@ -1747,10 +2001,8 @@
   }
   function updateTargetBandsHint(t) {
     t = clampTarget(t);
-    const a = Math.round(t * (90 / 155));
-    const g = Math.round(t * (120 / 155));
     document.getElementById('targetBandsHint').textContent =
-      'Amber from ' + a + 'g · Green from ' + g + 'g · Gauge to ' + Math.max(200, Math.ceil((t * 1.3) / 10) * 10) + 'g';
+      'Amber from ' + amberStart(t) + 'g · Green from ' + greenStart(t) + 'g · Gauge to ' + gaugeMaxFor(t) + 'g';
   }
   function numOrNull(id) {
     const v = document.getElementById(id).value;
@@ -1921,7 +2173,27 @@
   document.addEventListener('click', function () { menu.classList.remove('open'); });
   menu.addEventListener('click', function (e) { e.stopPropagation(); });
 
-  document.getElementById('targetBtn').addEventListener('click', openTargetSheet);
+  document.getElementById('targetBtn').addEventListener('click', function () {
+    closeGoalPop();
+    openTargetSheet();
+  });
+  document.getElementById('goalPopMinus').addEventListener('click', function () {
+    applyTarget(getTarget() - 5, { animateMax: true });
+  });
+  document.getElementById('goalPopPlus').addEventListener('click', function () {
+    applyTarget(getTarget() + 5, { animateMax: true });
+  });
+  document.getElementById('goalPopDone').addEventListener('click', function () {
+    closeGoalPop();
+    render();
+  });
+  document.addEventListener('click', function (e) {
+    if (!goalPopOpen) return;
+    const pop = document.getElementById('goalPop');
+    if (pop && !pop.contains(e.target) && !(e.target.closest && e.target.closest('#goalKnob, #goalLabel'))) {
+      closeGoalPop();
+    }
+  });
   document.getElementById('targetCancel').addEventListener('click', closeSheet);
   document.getElementById('targetMinus').addEventListener('click', function () {
     const v = clampTarget((parseInt(document.getElementById('fTarget').value, 10) || getTarget()) - 5);
@@ -1937,10 +2209,15 @@
     updateTargetBandsHint(document.getElementById('fTarget').value);
   });
   document.getElementById('targetSave').addEventListener('click', function () {
+    const prevMax = gaugeMax();
     settings.target = clampTarget(document.getElementById('fTarget').value);
     persistSettings();
     closeSheet();
-    render();
+    closeGoalPop();
+    const newMax = gaugeMax();
+    animateGaugeMax(prevMax, newMax, function () { render(); });
+    renderWeek();
+    renderStats();
   });
 
   document.getElementById('manualToggle').addEventListener('click', function () {
@@ -2069,7 +2346,9 @@
       });
     },
     dayTotal: function () { return dayTotal(viewDate); },
-    setTarget: function (t) { settings.target = clampTarget(t); persistSettings(); render(); },
+    setTarget: function (t) { applyTarget(t, { animateMax: false }); },
+    getGaugeMax: function () { return gaugeMax(); },
+    getBands: function () { return { amber: amberStart(), green: greenStart(), max: gaugeMax(), goal: getTarget() }; },
     getTarget: function () { return getTarget(); },
     setPeriod: function (p) { settings.statsPeriod = p; persistSettings(); renderStats(); },
     injectDays: function (days) {
@@ -2085,7 +2364,7 @@
     seedEmojis: function () {
       return SEED.map(function (e) { return { name: e.name, emoji: mealEmoji(e.name) }; });
     },
-    build: 'stats-target-exif-emoji-est-v1'
+    build: 'goal-drag-v1'
   };
 
   // Persist storage when supported (keeps localStorage/IDB from being evicted)
