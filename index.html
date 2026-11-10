@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Protein">
 <meta name="theme-color" content="#F2F2F7">
 <title>Protein</title>
-<meta name="protein-build" content="goal-drag-v1">
+<meta name="protein-build" content="gauge-v3-polish">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -106,12 +106,12 @@
   .gauge-hint { margin-top: 8px; font-size: 13px; color: var(--muted); }
   .band-label { font-size: 10px; font-weight: 600; fill: #8E8E93; }
   .gauge-wrap { touch-action: none; }
-  .goal-knob-hit { cursor: grab; touch-action: none; }
-  .goal-knob-hit:active, .gauge-wrap.dragging .goal-knob-hit { cursor: grabbing; }
-  .gauge-wrap.dragging .goal-knob-dot { filter: drop-shadow(0 0 6px rgba(0,0,0,0.25)); }
-  .goal-knob-dot { transition: r 0.12s ease, stroke-width 0.12s ease; }
-  .gauge-wrap.dragging .goal-knob-dot { r: 14; }
+  .goal-hit { cursor: grab; touch-action: none; }
+  .gauge-wrap.dragging { cursor: grabbing; }
   .goal-label-hit { cursor: pointer; }
+  .goal-drag-pill {
+    font-size: 11px; font-weight: 700; fill: #fff;
+  }
   .goal-pop {
     position: absolute; z-index: 40;
     background: var(--card); border-radius: 16px;
@@ -1009,13 +1009,17 @@
   function getTarget() { return clampTarget(settings.target); }
   function amberStart(t) {
     t = t != null ? t : getTarget();
-    return Math.max(5, roundTo5(t * (90 / 155)));
+    // Red below 50% of target; amber from 50%
+    return Math.max(5, roundTo5(t * 0.5));
   }
   function greenStart(t) {
     t = t != null ? t : getTarget();
     var a = amberStart(t);
-    var g = Math.max(a + 5, roundTo5(t * (120 / 155)));
-    return Math.min(g, Math.max(a + 5, t - 5));
+    // Green from 80% of target
+    var g = Math.max(a + 5, roundTo5(t * 0.8));
+    // Keep green below target when possible
+    if (g >= t) g = Math.max(a + 5, roundTo5(t - 5));
+    return g;
   }
   function gaugeMaxFor(t) {
     t = t != null ? t : getTarget();
@@ -1360,11 +1364,11 @@
 
   function drawGauge(total) {
     const svg = document.getElementById('gaugeSvg');
-    const wrap = document.getElementById('gaugeWrap');
     const cx = 160, cy = 155, r = 108, stroke = 18, gap = 3;
     const goal = getTarget();
     const maxG = effectiveGaugeMax();
     const a = amberStart(goal), gr = greenStart(goal);
+    const dragging = !!(gaugeDrag && gaugeDrag.moved);
     const bands = [
       { from: 0, to: a, color: COLORS.red },
       { from: a, to: gr, color: COLORS.amber },
@@ -1378,35 +1382,60 @@
       if (a1 <= a0) return;
       html += '<path d="' + describeArc(cx, cy, r, a0, a1) + '" fill="none" stroke="' + b.color + '" stroke-width="' + stroke + '" stroke-linecap="round"/>';
     });
+
+    const goalVisual = Math.min(goal, maxG);
+    const ga = valueToAngle(goalVisual, maxG);
+    const gl = polar(cx, cy, r + 42, ga);
+
+    function labelsCollide(v) {
+      // hide tick if too close in angle to the goal marker
+      const ang = valueToAngle(Math.min(v, maxG), maxG);
+      return Math.abs(ang - ga) < 14 || Math.abs(ang - ga) > 360 - 14;
+    }
     function labelAt(v, text, dy) {
+      if (labelsCollide(v) && v !== 0 && v !== maxG) return '';
+      // still show 0 and max unless extremely close
+      if ((v === 0 || v === maxG) && Math.abs(valueToAngle(Math.min(v, maxG), maxG) - ga) < 10) return '';
       const p = polar(cx, cy, r + 28, valueToAngle(Math.min(v, maxG), maxG));
       return '<text class="band-label" x="' + p.x + '" y="' + (p.y + (dy || 0)) + '" text-anchor="middle" dominant-baseline="middle">' + text + '</text>';
     }
     html += labelAt(0, '0', 4) + labelAt(a, String(a)) + labelAt(gr, String(gr)) + labelAt(maxG, String(maxG), 4);
 
-    // Goal knob — visual on arc (clamped to maxG), hit target ~44px
-    const goalVisual = Math.min(goal, maxG);
-    const ga = valueToAngle(goalVisual, maxG);
-    const gpos = polar(cx, cy, r, ga);
-    const gl = polar(cx, cy, r + 42, ga);
-    const dragging = !!(gaugeDrag && gaugeDrag.moved);
-    const knobR = dragging ? 14 : 11;
-    html += '<g class="goal-knob-hit" id="goalKnob" role="slider" aria-valuemin="50" aria-valuemax="300" aria-valuenow="' + goal + '" aria-label="Daily protein goal">' +
-      '<circle class="goal-knob-hit-area" cx="' + gpos.x + '" cy="' + gpos.y + '" r="22" fill="transparent" stroke="none"/>' +
-      '<circle class="goal-knob-dot" cx="' + gpos.x + '" cy="' + gpos.y + '" r="' + knobR + '" fill="#1C1C1E" stroke="#fff" stroke-width="3"/>' +
-      '<line x1="' + polar(cx, cy, r - stroke / 2 - 2, ga).x + '" y1="' + polar(cx, cy, r - stroke / 2 - 2, ga).y +
-        '" x2="' + polar(cx, cy, r + stroke / 2 + 2, ga).x + '" y2="' + polar(cx, cy, r + stroke / 2 + 2, ga).y +
-        '" stroke="#1C1C1E" stroke-width="2" stroke-linecap="round" pointer-events="none"/>' +
+    // Refined goal tick (prior polished style) + generous invisible hit area
+    const gin = polar(cx, cy, r - stroke / 2 - 4, ga);
+    const gout = polar(cx, cy, r + stroke / 2 + 4, ga);
+    const gmid = polar(cx, cy, r, ga);
+    html += '<g id="goalKnob" class="goal-hit" role="slider" aria-valuemin="50" aria-valuemax="300" aria-valuenow="' + goal + '" aria-label="Daily protein goal">' +
+      '<circle cx="' + gmid.x + '" cy="' + gmid.y + '" r="22" fill="transparent" stroke="none"/>' +
+      '<line id="goalTick" x1="' + gin.x + '" y1="' + gin.y + '" x2="' + gout.x + '" y2="' + gout.y + '" stroke="#1C1C1E" stroke-width="' + (dragging ? 3 : 2) + '" stroke-linecap="round"/>' +
       '</g>';
-    html += '<text class="band-label goal-label-hit" id="goalLabel" x="' + gl.x + '" y="' + gl.y +
-      '" text-anchor="middle" dominant-baseline="middle" style="fill:#1C1C1E;font-weight:700;font-size:11px">Goal ' + goal + '</text>';
 
-    // Day total needle (under knob visually if overlapping — draw before knob? already drew knob; needle on top of bands is fine)
+    if (dragging) {
+      // Small refined pill while dragging
+      const pw = 52, ph = 18;
+      const px = gl.x - pw / 2, py = gl.y - ph / 2;
+      html += '<g id="goalLabel" class="goal-label-hit" pointer-events="none">' +
+        '<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="' + ph + '" rx="9" fill="#1C1C1E"/>' +
+        '<text class="goal-drag-pill" x="' + gl.x + '" y="' + gl.y + '" text-anchor="middle" dominant-baseline="middle">Goal ' + goal + '</text>' +
+        '</g>';
+    } else {
+      html += '<text class="band-label goal-label-hit" id="goalLabel" x="' + gl.x + '" y="' + gl.y +
+        '" text-anchor="middle" dominant-baseline="middle" style="fill:#1C1C1E;font-weight:700">Goal ' + goal + '</text>';
+      // Expand label hit via transparent rect behind
+      const lw = 64, lh = 22;
+      html += '<rect id="goalLabelHit" class="goal-hit" x="' + (gl.x - lw / 2) + '" y="' + (gl.y - lh / 2) +
+        '" width="' + lw + '" height="' + lh + '" fill="transparent"/>';
+    }
+
+    // Current-value needle — prior polished style
     const mp = polar(cx, cy, r, valueToAngle(Math.min(total, maxG), maxG));
     const mc = dayColor(total) || COLORS.red;
-    // Insert needle before knob by rebuilding order: actually redraw needle under by putting it earlier.
-    // For simplicity leave knob on top so it's always grabable.
-    html += '<circle id="dayNeedle" cx="' + mp.x + '" cy="' + mp.y + '" r="9" fill="#fff" stroke="' + mc + '" stroke-width="4" pointer-events="none"></circle>';
+    if (dragging) {
+      html += '<circle cx="' + mp.x + '" cy="' + mp.y + '" r="11" fill="#fff" stroke="' + mc + '" stroke-width="4" pointer-events="none"/>';
+    } else {
+      html += '<circle cx="' + mp.x + '" cy="' + mp.y + '" r="11" fill="#fff" stroke="' + mc + '" stroke-width="4" pointer-events="none">' +
+        '<animate attributeName="r" from="0" to="11" dur="0.45s" fill="freeze"/></circle>';
+    }
 
     svg.innerHTML = html;
     document.getElementById('totalNum').textContent = Math.round(total);
@@ -1418,7 +1447,7 @@
     bindGoalKnob();
   }
 
-  let goalKnobBound = false;
+    let goalKnobBound = false;
   function bindGoalKnob() {
     if (goalKnobBound) return;
     goalKnobBound = true;
@@ -1433,14 +1462,10 @@
         // allow events delegated from svg
       }
       const isKnob = evt.target.closest && evt.target.closest('#goalKnob');
-      const isLabel = evt.target.id === 'goalLabel' || (evt.target.closest && evt.target.closest('#goalLabel'));
-      if (isLabel) {
-        evt.preventDefault();
-        evt.stopPropagation();
-        openGoalPop();
-        return;
-      }
-      if (!isKnob) return;
+      const isLabel = evt.target.id === 'goalLabel' || evt.target.id === 'goalLabelHit' ||
+        (evt.target.closest && evt.target.closest('#goalLabel, #goalLabelHit'));
+      // Label: allow drag if user moves; tap opens popover on pointerup via !moved
+      if (!isKnob && !isLabel) return;
       evt.preventDefault();
       evt.stopPropagation();
       closeGoalPop();
@@ -2190,7 +2215,7 @@
   document.addEventListener('click', function (e) {
     if (!goalPopOpen) return;
     const pop = document.getElementById('goalPop');
-    if (pop && !pop.contains(e.target) && !(e.target.closest && e.target.closest('#goalKnob, #goalLabel'))) {
+    if (pop && !pop.contains(e.target) && !(e.target.closest && e.target.closest('#goalKnob, #goalLabel, #goalLabelHit'))) {
       closeGoalPop();
     }
   });
@@ -2364,7 +2389,7 @@
     seedEmojis: function () {
       return SEED.map(function (e) { return { name: e.name, emoji: mealEmoji(e.name) }; });
     },
-    build: 'goal-drag-v1'
+    build: 'gauge-v3-polish'
   };
 
   // Persist storage when supported (keeps localStorage/IDB from being evicted)
